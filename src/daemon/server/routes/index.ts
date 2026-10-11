@@ -20,6 +20,9 @@ import { setupSystemRoutes } from './system.js';
 import { setupTaskRoutes } from './tasks.js';
 import { setupSecretRoutes } from './secrets.js';
 import { setupUsageRoutes } from './usage.js';
+import { setupMemoryRoutes } from './memory.js';
+import { setupSettingsRoutes } from './settings.js';
+import type { SettingsStore } from '../../settings/index.js';
 
 export interface RoutesContext {
   sessionPool?: SessionPool;
@@ -28,6 +31,8 @@ export interface RoutesContext {
   scheduler?: Scheduler;
   secrets?: SecretsManager;
   usage?: UsageTracker;
+  settingsStore?: SettingsStore;
+  respirePort?: number;
 }
 
 export function setupRoutes(
@@ -68,5 +73,13 @@ export function setupRoutes(
   // Usage tracking routes
   if (context?.usage) {
     setupUsageRoutes(app, context.usage);
+  }
+
+  // Memory (Respire RPC)
+  setupMemoryRoutes(app, context?.respirePort ?? 15169);
+
+  // GUI settings
+  if (context?.settingsStore) {
+    setupSettingsRoutes(app, context.settingsStore);
   }
 }

@@ -14,6 +14,43 @@ export function setupSecretRoutes(app: Hono, secrets: SecretsManager) {
     return c.json({ success: true, data: { secrets: list } });
   });
 
+  // Create / request secret from GUI
+  app.post('/api/secrets', async (c) => {
+    const body = (await c.req.json()) as {
+      name: string;
+      purpose?: string;
+      value: string;
+      requestedBy?: string;
+      scope?: 'all' | string[];
+    };
+
+    if (!body.name || !body.value) {
+      return c.json({ success: false, error: 'name and value are required' }, 400);
+    }
+
+    try {
+      await secrets.approveSecret(
+        body.name,
+        {
+          name: body.name,
+          value: body.value,
+          purpose: body.purpose,
+          scope: body.scope ?? 'all',
+        },
+        body.requestedBy ?? 'ui'
+      );
+      return c.json({ success: true, data: { success: true } }, 201);
+    } catch (error) {
+      return c.json(
+        {
+          success: false,
+          error: error instanceof Error ? error.message : 'Failed to create secret',
+        },
+        400
+      );
+    }
+  });
+
   // Approve/create secret (UI only)
   app.post('/api/secrets/:name/approve', async (c) => {
     const name = c.req.param('name');
@@ -27,6 +64,23 @@ export function setupSecretRoutes(app: Hono, secrets: SecretsManager) {
         {
           success: false,
           error: error instanceof Error ? error.message : 'Failed to approve secret',
+        },
+        400
+      );
+    }
+  });
+
+  // GUI revoke alias
+  app.post('/api/secrets/:name/revoke', async (c) => {
+    const name = c.req.param('name');
+    try {
+      await secrets.delete(name);
+      return c.json({ success: true, data: { success: true } });
+    } catch (error) {
+      return c.json(
+        {
+          success: false,
+          error: error instanceof Error ? error.message : 'Failed to revoke secret',
         },
         400
       );

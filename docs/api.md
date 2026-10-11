@@ -36,6 +36,20 @@ Error responses:
 
 ## Endpoints
 
+### Health
+
+#### `GET /health`
+
+Liveness. **No** `{success,data}` envelope.
+
+```json
+{ "status": "ok", "version": "0.1.0-beta.6", "pid": 123, "home": "...", "timestamp": "..." }
+```
+
+#### `GET /api/health`
+
+Same payload wrapped as `{ "success": true, "data": { ... } }` for the GUI `ping()` client.
+
 ### Bots
 
 #### `GET /api/bots`
@@ -167,94 +181,55 @@ Post a message to a group.
 
 **Request**: `PostToGroupRequest`
 
-### Memory
+### Memory (Respire RPC)
 
-#### `GET /api/memory/status`
+All GET memory routes return `{ success: true, data: { available, reason?, ... } }`.
+When Respire is not running they still return **200** with `available: false` and `reason: "Respire not running"` — never an empty list that hides the error.
 
-Get memory system status.
+- `GET /api/memory/status`
+- `GET /api/memory/search?query&scope&limit`
+- `GET /api/memory/summary?scope&botId`
+- `GET /api/memory/:id`
+- `POST /api/memory/recall`
+- `POST /api/memory/remember` (503 if Respire down)
+- `POST /api/bots/:botId/memory`
+- `PATCH /api/memory/:id`
+- `DELETE /api/memory/:id`
 
-**Response**: `MemoryStatusResponse`
+### Tasks (schedules)
 
-#### `POST /api/memory/recall`
+Implemented as `/api/tasks` (not `/api/schedules`). Body uses `ScheduleCreateRequest`: `{ botId, prompt, timeType, time }`.
 
-Recall memories.
-
-**Request**: `RecallRequest`
-
-**Response**: `RecallResponse`
-
-#### `POST /api/memory/remember`
-
-Store a memory.
-
-**Request**: `RememberRequest`
-
-**Response**: `RememberResponse`
-
-#### `DELETE /api/memory/:id`
-
-Forget a memory.
-
-**Request**: `ForgetRequest`
-
-**Response**: `ForgetResponse`
-
-### Schedules
-
-#### `GET /api/schedules`
-
-List schedules.
-
-**Response**: `ListSchedulesResponse`
-
-#### `POST /api/schedules`
-
-Create a schedule.
-
-**Request**: `CreateScheduleRequest`
-
-**Response**: `CreateScheduleResponse`
-
-#### `DELETE /api/schedules/:id`
-
-Delete a schedule.
-
-**Response**: `DeleteScheduleResponse`
+- `GET /api/tasks`
+- `GET /api/tasks/:id`
+- `POST /api/tasks`
+- `PATCH /api/tasks/:id`
+- `DELETE /api/tasks/:id`
+- `POST /api/tasks/:id/toggle` `{ enabled }`
 
 ### Secrets
 
-#### `GET /api/secrets`
+- `GET /api/secrets`
+- `POST /api/secrets` `{ name, purpose, value, requestedBy?, scope? }`
+- `POST /api/secrets/:name/approve`
+- `POST /api/secrets/:name/revoke`
+- `DELETE /api/secrets/:name`
+- `GET /api/secrets/:name/value?botId=`
 
-List secrets (values not included).
+### Settings
 
-**Response**: `ListSecretsResponse`
+Persisted in `{pi-bot-home}/settings.json`.
 
-#### `POST /api/secrets`
-
-Create a secret.
-
-**Request**: `SecretCreateRequest`
-
-**Response**: `CreateSecretResponse`
-
-#### `DELETE /api/secrets/:name`
-
-Delete a secret.
-
-**Response**: `DeleteSecretResponse`
+- `GET /api/settings` → `{ settings }`
+- `PATCH /api/settings` → `{ settings }`
 
 ### Usage Stats
 
-#### `GET /api/usage`
-
-Get usage statistics.
-
-**Query params**:
-- `from`: ISO date (optional)
-- `to`: ISO date (optional)
-- `botId`: Filter by bot (optional)
-
-**Response**: `GetUsageStatsResponse`
+- `GET /api/usage?period=day|week|month` → `{ aggregations, stats }` where `stats.total.inputTokens` exists
+- `GET /api/usage/stats` same GUI-friendly `stats` plus `aggregations`
+- `GET /api/usage/records`
+- `GET /api/usage/bots/:botId/stats`
+- `POST /api/usage/cleanup`
 
 ### System
 

@@ -1,29 +1,27 @@
 // API client factory
-// Exports the appropriate client based on environment
+// 生产环境永远走真实 daemon HTTP 客户端；mock 仅用于单测直接 import
 
-import { MockApiClient } from './mock';
 import { HttpApiClient } from './http';
 import type { ApiClient } from './client';
 
 export * from './client';
-export * from './mock';
 export * from './http';
+export { MockApiClient } from './mock';
+
+let singleton: ApiClient | null = null;
 
 /**
- * Create API client instance
- * Uses HTTP client by default, mock only when VITE_USE_MOCK_API=true
+ * 创建 API 客户端。生产 / 打包 GUI 始终使用 HttpApiClient。
  */
 export function createApiClient(): ApiClient {
-  // @ts-expect-error - Vite env types
-  const useMock = import.meta.env?.VITE_USE_MOCK_API === 'true';
-  // @ts-expect-error - Vite env types
-  const baseUrl = import.meta.env?.VITE_API_BASE_URL;
-
-  if (useMock) {
-    console.log('[API] Using mock client for development');
-    return new MockApiClient();
+  if (singleton) {
+    return singleton;
   }
 
-  console.log(`[API] Using HTTP client (${baseUrl || 'http://127.0.0.1:8787'})`);
-  return new HttpApiClient(baseUrl);
+  // @ts-expect-error - Vite env types
+  const baseUrl = import.meta.env?.VITE_API_BASE_URL as string | undefined;
+  singleton = new HttpApiClient(baseUrl);
+  return singleton;
 }
+
+export const api = createApiClient();

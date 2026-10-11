@@ -1,23 +1,32 @@
 import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Calendar, Plus, Edit, Trash2, Clock } from 'lucide-react';
-import { createApiClient } from '@/api';
-import type { ScheduledTask } from '@/types';
-
-const api = createApiClient();
+import { Calendar, Plus, Clock } from 'lucide-react';
+import { api } from '@/api';
+import type { ScheduledTask, Bot } from '@/types';
+import { PageStatus } from '@/components/PageStatus';
 
 export const TasksView: React.FC = () => {
   const { t } = useTranslation();
   const [tasks, setTasks] = useState<ScheduledTask[]>([]);
-  const [loading, setLoading] = useState(false);
+  const [bots, setBots] = useState<Bot[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [showCreate, setShowCreate] = useState(false);
+  const [name, setName] = useState('');
+  const [message, setMessage] = useState('');
+  const [botId, setBotId] = useState('');
+  const [saving, setSaving] = useState(false);
 
   const loadTasks = async () => {
     setLoading(true);
+    setError(null);
     try {
-      const data = await api.getTasks();
+      const [data, botList] = await Promise.all([api.getTasks(), api.getBots()]);
       setTasks(data);
-    } catch (error) {
-      console.error('Failed to load tasks:', error);
+      setBots(botList);
+      if (!botId && botList[0]) setBotId(botList[0].id);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : t('common.loadFailed'));
     } finally {
       setLoading(false);
     }
@@ -27,14 +36,36 @@ export const TasksView: React.FC = () => {
     try {
       await api.toggleTask(id, enabled);
       await loadTasks();
-    } catch (error) {
-      console.error('Failed to toggle task:', error);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : t('common.error'));
     }
   };
 
   useEffect(() => {
-    loadTasks();
+    void loadTasks();
   }, []);
+
+  const handleCreate = async () => {
+    if (!name.trim() || !message.trim() || !botId) return;
+    setSaving(true);
+    try {
+      const task = await api.createTask({
+        name: name.trim(),
+        targetType: 'bot',
+        targetId: botId,
+        message: message.trim(),
+        schedule: { type: 'daily', time: '09:00' },
+      });
+      setTasks((prev) => [...prev, task]);
+      setShowCreate(false);
+      setName('');
+      setMessage('');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : t('common.error'));
+    } finally {
+      setSaving(false);
+    }
+  };
 
   return (
     <div className="h-full flex flex-col">
@@ -48,7 +79,11 @@ export const TasksView: React.FC = () => {
               </h1>
             </div>
           </div>
-          <button className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
+          <button
+            type="button"
+            onClick={() => setShowCreate(true)}
+            className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+          >
             <Plus size={20} />
             {t('task.create')}
           </button>
@@ -56,15 +91,18 @@ export const TasksView: React.FC = () => {
       </div>
 
       <div className="flex-1 overflow-y-auto p-6">
-        {loading ? (
-          <div className="text-center text-gray-500 py-8">{t('common.loading')}</div>
-        ) : tasks.length === 0 ? (
-          <div className="text-center text-gray-500 py-8">No tasks</div>
-        ) : (
+        <PageStatus
+          loading={loading}
+          error={error}
+          empty={!loading && !error && tasks.length === 0}
+          emptyText={t('task.empty')}
+          onRetry={() => void loadTasks()}
+        >
           <div className="space-y-4">
             {tasks.map((task) => (
               <div
                 key={task.id}
+                data-task-name={task.name}
                 className="p-4 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700"
               >
                 <div className="flex items-start justify-between">
@@ -78,9 +116,7 @@ export const TasksView: React.FC = () => {
                     <div className="flex items-center gap-4 text-xs text-gray-500 dark:text-gray-400">
                       <span className="flex items-center gap-1">
                         <Clock size={14} />
-                        {task.schedule.type === 'daily' && `${t('task.scheduleDaily')} ${task.schedule.time}`}
-                        {task.schedule.type === 'weekly' && `${t('task.scheduleWeekly')} ${task.schedule.time}`}
-                        {task.schedule.type === 'interval' && `${t('task.scheduleInterval')} ${task.schedule.interval}m`}
+                        {task.schedule.type} {task.schedule.time}
                       </span>
                       {task.nextRun && (
                         <span>
@@ -89,29 +125,67 @@ export const TasksView: React.FC = () => {
                       )}
                     </div>
                   </div>
-                  <div className="flex gap-2 ml-4">
-                    <label className="relative inline-flex items-center cursor-pointer">
-                      <input
-                        type="checkbox"
-                        checked={task.enabled}
-                        onChange={(e) => toggleTask(task.id, e.target.checked)}
-                        className="sr-only peer"
-                      />
-                      <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 dark:peer-focus:ring-blue-800 rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-blue-600"></div>
-                    </label>
-                    <button className="p-2 text-gray-500 hover:text-blue-600 transition-colors">
-                      <Edit size={16} />
-                    </button>
-                    <button className="p-2 text-gray-500 hover:text-red-600 transition-colors">
-                      <Trash2 size={16} />
-                    </button>
-                  </div>
+                  <label className="relative inline-flex items-center cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={task.enabled}
+                      onChange={(e) => void toggleTask(task.id, e.target.checked)}
+                      className="sr-only peer"
+                    />
+                    <div className="w-11 h-6 bg-gray-200 rounded-full peer peer-checked:bg-blue-600 after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:after:translate-x-full"></div>
+                  </label>
                 </div>
               </div>
             ))}
           </div>
-        )}
+        </PageStatus>
       </div>
+
+      {showCreate && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
+          <div className="bg-white dark:bg-gray-800 rounded-lg p-6 w-full max-w-md space-y-4">
+            <h2 className="text-lg font-semibold">{t('task.create')}</h2>
+            <input
+              data-testid="task-name-input"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder={t('task.name')}
+              className="w-full px-3 py-2 border rounded-lg"
+            />
+            <textarea
+              data-testid="task-message-input"
+              value={message}
+              onChange={(e) => setMessage(e.target.value)}
+              placeholder={t('task.message')}
+              className="w-full px-3 py-2 border rounded-lg"
+            />
+            <select
+              data-testid="task-bot-select"
+              value={botId}
+              onChange={(e) => setBotId(e.target.value)}
+              className="w-full px-3 py-2 border rounded-lg"
+            >
+              {bots.map((bot) => (
+                <option key={bot.id} value={bot.id}>{bot.name}</option>
+              ))}
+            </select>
+            <div className="flex justify-end gap-2">
+              <button type="button" onClick={() => setShowCreate(false)} className="px-4 py-2 border rounded-lg">
+                {t('common.cancel')}
+              </button>
+              <button
+                type="button"
+                data-testid="task-create-submit"
+                onClick={() => void handleCreate()}
+                disabled={saving}
+                className="px-4 py-2 bg-blue-600 text-white rounded-lg"
+              >
+                {t('common.create')}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

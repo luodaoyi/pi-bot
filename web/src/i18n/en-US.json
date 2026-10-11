@@ -27,7 +27,8 @@
     "createdAt": "Created At",
     "chat": "Chat",
     "sending": "Sending...",
-    "streaming": "Generating..."
+    "streaming": "Generating...",
+    "empty": "No bots"
   },
   "group": {
     "list": "Group List",
@@ -41,7 +42,8 @@
     "modeEveryone": "Everyone",
     "modeAdmin": "Admin Only",
     "notice": "Notice",
-    "post": "Post Message"
+    "post": "Post Message",
+    "empty": "No groups"
   },
   "memory": {
     "title": "Memory Management",
@@ -60,7 +62,9 @@
     "update": "Update Memory",
     "forget": "Forget",
     "summary": "Summary",
-    "noResults": "No results found"
+    "noResults": "No results found",
+    "respireNotRunning": "Respire not running",
+    "respireHint": "Memory requires a local Respire runtime on 127.0.0.1:15169."
   },
   "task": {
     "list": "Scheduled Tasks",
@@ -80,7 +84,8 @@
     "enabled": "Enabled",
     "disabled": "Disabled",
     "nextRun": "Next Run",
-    "lastRun": "Last Run"
+    "lastRun": "Last Run",
+    "empty": "No tasks"
   },
   "secret": {
     "list": "Secret Management",
@@ -92,7 +97,8 @@
     "value": "Value",
     "valuePlaceholder": "Enter secret value (never shown)",
     "createdAt": "Created At",
-    "lastUsedAt": "Last Used"
+    "lastUsedAt": "Last Used",
+    "empty": "No secrets"
   },
   "usage": {
     "title": "Usage Statistics",
@@ -107,7 +113,8 @@
     "cacheRead": "Cache Read",
     "cacheWrite": "Cache Write",
     "cost": "Cost",
-    "total": "Total"
+    "total": "Total",
+    "empty": "No usage data"
   },
   "settings": {
     "title": "Settings",
@@ -136,6 +143,9 @@
     "confirm": "Confirm",
     "back": "Back",
     "send": "Send",
-    "refresh": "Refresh"
+    "refresh": "Refresh",
+    "retry": "Retry",
+    "empty": "No data",
+    "loadFailed": "Failed to load"
   }
 }

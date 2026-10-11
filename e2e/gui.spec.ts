@@ -1,266 +1,186 @@
 /**
- * E2E test for pi-bot web GUI
- * Tests all pages with real daemon API, fails on console errors or ErrorBoundary
+ * Playwright E2E：真实 daemon + 无 API key + Respire 未运行。
+ * 任一 /api 4xx/5xx、console.error、pageerror、ErrorBoundary、5s 后仍「加载中」即失败。
  */
-
 import { test, expect, type Page } from '@playwright/test';
 import { spawn, type ChildProcess } from 'node:child_process';
 import { join, dirname } from 'node:path';
-import { existsSync, rmSync } from 'node:fs';
-import { homedir } from 'node:os';
+import { existsSync, mkdirSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import { fileURLToPath } from 'node:url';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-
-const PORT = 8787;
-const BASE_URL = `http://localhost:${PORT}`;
-const TEST_HOME = join(homedir(), '.pi-bot-test-e2e');
+const PORT = Number(process.env.PI_BOT_E2E_PORT || 18787);
+const EXTERNAL_URL = process.env.PI_BOT_E2E_URL;
+const BASE_URL = EXTERNAL_URL || `http://127.0.0.1:${PORT}`;
+const TEST_HOME = process.env.PI_BOT_E2E_HOME || join(tmpdir(), `pi-bot-e2e-${process.pid}`);
+const SCREEN_DIR = join(__dirname, 'screenshots');
 
 let daemon: ChildProcess | null = null;
+let startedByTest = false;
+
+function attachGuards(page: Page) {
+  const errors: string[] = [];
+  const apiFailures: string[] = [];
+
+  page.on('console', (msg) => {
+    if (msg.type() === 'error') {
+      errors.push(`[console.error] ${msg.text()}`);
+    }
+  });
+  page.on('pageerror', (error) => {
+    errors.push(`[pageerror] ${error.message}`);
+  });
+  page.on('response', (response) => {
+    const url = response.url();
+    if (!url.includes('/api')) return;
+    if (response.status() >= 400) {
+      apiFailures.push(`${response.status()} ${response.request().method()} ${url}`);
+    }
+  });
+
+  return {
+    assertClean: async (label: string) => {
+      const boundary = await page.locator('text=出错了').count();
+      expect(boundary, `${label}: ErrorBoundary visible`).toBe(0);
+      expect(errors, `${label}: console/page errors\n${errors.join('\n')}`).toEqual([]);
+      expect(apiFailures, `${label}: /api 4xx/5xx\n${apiFailures.join('\n')}`).toEqual([]);
+    },
+  };
+}
+
+async function waitReady(page: Page, screenshotName: string) {
+  await page.waitForLoadState('domcontentloaded');
+  await page.waitForTimeout(500);
+  const loading = page.getByText('加载中', { exact: false });
+  try {
+    await expect(loading).toHaveCount(0, { timeout: 5000 });
+  } catch {
+    await page.screenshot({ path: join(SCREEN_DIR, `${screenshotName}-loading-fail.png`), fullPage: true });
+    throw new Error(`${screenshotName}: 「加载中」在 5s 后仍可见`);
+  }
+  mkdirSync(SCREEN_DIR, { recursive: true });
+  await page.screenshot({ path: join(SCREEN_DIR, `${screenshotName}.png`), fullPage: true });
+}
 
 test.beforeAll(async () => {
-  // Clean test home
+  mkdirSync(SCREEN_DIR, { recursive: true });
+  if (EXTERNAL_URL) {
+    return;
+  }
+
   if (existsSync(TEST_HOME)) {
     rmSync(TEST_HOME, { recursive: true, force: true });
   }
+  mkdirSync(TEST_HOME, { recursive: true });
 
-  // Start daemon with test home
   const cliPath = join(__dirname, '../dist/cli.js');
-  
-  daemon = spawn(process.execPath, [cliPath, 'serve', '--port', PORT.toString()], {
-    env: { ...process.env, PI_BOT_HOME: TEST_HOME },
-    detached: false,
-    stdio: 'inherit',
-  });
+  if (!existsSync(cliPath)) {
+    throw new Error('dist/cli.js missing — build the package first');
+  }
 
-  // Wait for daemon to be ready
-  let retries = 30;
+  daemon = spawn(process.execPath, [cliPath, 'serve', '--port', String(PORT)], {
+    env: { ...process.env, PI_BOT_HOME: TEST_HOME },
+    stdio: 'pipe',
+  });
+  startedByTest = true;
+
+  let retries = 40;
   while (retries > 0) {
     try {
       const response = await fetch(`${BASE_URL}/health`);
-      if (response.ok) {
-        console.log('✓ Daemon ready');
-        break;
-      }
+      if (response.ok) break;
     } catch {
-      // Ignore
+      // 等待启动
     }
-    await new Promise((resolve) => setTimeout(resolve, 1000));
+    await new Promise((r) => setTimeout(r, 250));
     retries--;
   }
-
   if (retries === 0) {
-    throw new Error('Daemon failed to start');
+    throw new Error('Daemon failed to start for E2E');
   }
 });
 
 test.afterAll(async () => {
-  // Stop daemon
-  if (daemon) {
+  if (startedByTest && daemon) {
     daemon.kill('SIGTERM');
-    await new Promise((resolve) => setTimeout(resolve, 1000));
-    if (daemon.exitCode === null) {
-      daemon.kill('SIGKILL');
-    }
+    await new Promise((r) => setTimeout(r, 800));
+    if (daemon.exitCode === null) daemon.kill('SIGKILL');
   }
-
-  // Clean test home
-  if (existsSync(TEST_HOME)) {
+  if (startedByTest && existsSync(TEST_HOME)) {
     rmSync(TEST_HOME, { recursive: true, force: true });
   }
 });
 
-async function checkForErrors(page: Page) {
-  // Check for console errors
-  const errors: string[] = [];
-  page.on('console', (msg) => {
-    if (msg.type() === 'error') {
-      errors.push(msg.text());
-    }
-  });
+test.describe('PI-Bot Web GUI E2E (real daemon)', () => {
+  test('visits every route and creates bot/group/task/secret', async ({ page }) => {
+    const guards = attachGuards(page);
 
-  page.on('pageerror', (error) => {
-    errors.push(error.message);
-  });
-
-  return errors;
-}
-
-async function checkNoErrorBoundary(page: Page) {
-  // Check for ErrorBoundary text
-  const errorBoundaryText = await page.locator('text=机器人加载失败').count();
-  expect(errorBoundaryText).toBe(0);
-
-  const pageLoadError = await page.locator('text=Page Load Error').count();
-  expect(pageLoadError).toBe(0);
-}
-
-test.describe('PI-Bot Web GUI E2E', () => {
-  test('should load homepage without errors', async ({ page }) => {
-    const errors = await checkForErrors(page);
-
-    await page.goto(BASE_URL);
-    await page.waitForLoadState('networkidle');
-
-    await checkNoErrorBoundary(page);
-
-    // Should show main navigation
-    await expect(page.locator('text=机器人')).toBeVisible();
-
-    if (errors.length > 0) {
-      throw new Error(`Console errors on homepage:\n${errors.join('\n')}`);
-    }
-  });
-
-  test('should load Bots page without errors', async ({ page }) => {
-    const errors = await checkForErrors(page);
+    await page.goto(`${BASE_URL}/`);
+    await waitReady(page, 'root');
+    await expect(page).toHaveURL(/\/bots/);
+    await expect(page.getByText('Chief').first()).toBeVisible();
+    await expect(page.getByTestId('chat-input')).toBeVisible();
+    await guards.assertClean('root/bots');
 
     await page.goto(`${BASE_URL}/bots`);
-    await page.waitForLoadState('networkidle');
+    await waitReady(page, 'bots');
+    await expect(page.getByText('Chief').first()).toBeVisible();
+    await expect(page.getByTestId('chat-input')).toBeVisible();
+    await page.screenshot({ path: join(SCREEN_DIR, 'chat-chief.png'), fullPage: true });
+    await guards.assertClean('bots/chief');
 
-    await checkNoErrorBoundary(page);
-
-    // Should show Chief bot (created by bootstrap)
-    await expect(page.locator('text=Chief')).toBeVisible();
-
-    if (errors.length > 0) {
-      throw new Error(`Console errors on Bots page:\n${errors.join('\n')}`);
-    }
-  });
-
-  test('should load Chat page without errors', async ({ page }) => {
-    const errors = await checkForErrors(page);
-
-    await page.goto(`${BASE_URL}/chat`);
-    await page.waitForLoadState('networkidle');
-
-    await checkNoErrorBoundary(page);
-
-    // Should show chat interface
-    await expect(page.locator('textarea').or(page.locator('input[type="text"]'))).toBeVisible();
-
-    if (errors.length > 0) {
-      throw new Error(`Console errors on Chat page:\n${errors.join('\n')}`);
-    }
-  });
-
-  test('should load Groups page without errors', async ({ page }) => {
-    const errors = await checkForErrors(page);
+    await page.getByRole('button', { name: '创建机器人' }).click();
+    await page.getByTestId('bot-name-input').fill('E2E Writer');
+    await page.getByTestId('bot-role-input').fill('tester');
+    await page.getByTestId('bot-instructions-input').fill('E2E bot');
+    await page.getByTestId('bot-create-submit').click();
+    await expect(page.locator('[data-bot-name="E2E Writer"]')).toBeVisible({ timeout: 8000 });
+    await page.screenshot({ path: join(SCREEN_DIR, 'bots-created.png'), fullPage: true });
+    await guards.assertClean('create-bot');
 
     await page.goto(`${BASE_URL}/groups`);
-    await page.waitForLoadState('networkidle');
-
-    await checkNoErrorBoundary(page);
-
-    // Should show groups list or empty state
-    const hasGroups = await page.locator('text=创建群组').or(page.locator('text=新建群组')).count();
-    expect(hasGroups).toBeGreaterThan(0);
-
-    if (errors.length > 0) {
-      throw new Error(`Console errors on Groups page:\n${errors.join('\n')}`);
-    }
-  });
-
-  test('should load Memory page without errors', async ({ page }) => {
-    const errors = await checkForErrors(page);
+    await waitReady(page, 'groups');
+    await page.getByRole('button', { name: '创建群聊' }).click();
+    await page.getByTestId('group-name-input').fill('E2E Group');
+    await page.getByTestId('group-create-submit').click();
+    await expect(page.locator('[data-group-name="E2E Group"]')).toBeVisible({ timeout: 8000 });
+    await guards.assertClean('groups');
 
     await page.goto(`${BASE_URL}/memory`);
-    await page.waitForLoadState('networkidle');
-
-    await checkNoErrorBoundary(page);
-
-    // Should show memory interface
-    await expect(page.locator('text=记忆').or(page.locator('text=Memory'))).toBeVisible();
-
-    if (errors.length > 0) {
-      throw new Error(`Console errors on Memory page:\n${errors.join('\n')}`);
-    }
-  });
-
-  test('should load Tasks page without errors', async ({ page }) => {
-    const errors = await checkForErrors(page);
+    await waitReady(page, 'memory');
+    await expect(page.getByText('Respire not running')).toBeVisible();
+    await expect(page.getByText('未找到相关记忆')).toHaveCount(0);
+    await guards.assertClean('memory');
 
     await page.goto(`${BASE_URL}/tasks`);
-    await page.waitForLoadState('networkidle');
-
-    await checkNoErrorBoundary(page);
-
-    // Should show tasks/schedule interface
-    await expect(page.locator('text=任务').or(page.locator('text=调度'))).toBeVisible();
-
-    if (errors.length > 0) {
-      throw new Error(`Console errors on Tasks page:\n${errors.join('\n')}`);
-    }
-  });
-
-  test('should load Secrets page without errors', async ({ page }) => {
-    const errors = await checkForErrors(page);
+    await waitReady(page, 'tasks');
+    await page.getByRole('button', { name: '创建任务' }).click();
+    await page.getByTestId('task-name-input').fill('E2E Task');
+    await page.getByTestId('task-message-input').fill('hello from e2e');
+    await page.getByTestId('task-create-submit').click();
+    await expect(page.locator('[data-task-name]').filter({ hasText: 'E2E Task' })).toBeVisible({ timeout: 8000 });
+    await guards.assertClean('tasks');
 
     await page.goto(`${BASE_URL}/secrets`);
-    await page.waitForLoadState('networkidle');
-
-    await checkNoErrorBoundary(page);
-
-    // Should show secrets interface
-    await expect(page.locator('text=密钥').or(page.locator('text=Secret'))).toBeVisible();
-
-    if (errors.length > 0) {
-      throw new Error(`Console errors on Secrets page:\n${errors.join('\n')}`);
-    }
-  });
-
-  test('should load Usage page without errors', async ({ page }) => {
-    const errors = await checkForErrors(page);
+    await waitReady(page, 'secrets');
+    await page.getByRole('button', { name: '请求密钥' }).click();
+    await page.getByTestId('secret-name-input').fill('E2E_SECRET');
+    await page.getByTestId('secret-purpose-input').fill('e2e');
+    await page.getByTestId('secret-value-input').fill('not-a-real-key');
+    await page.getByTestId('secret-create-submit').click();
+    await expect(page.locator('[data-secret-name="E2E_SECRET"]')).toBeVisible({ timeout: 8000 });
+    await guards.assertClean('secrets');
 
     await page.goto(`${BASE_URL}/usage`);
-    await page.waitForLoadState('networkidle');
-
-    await checkNoErrorBoundary(page);
-
-    // Should show usage stats or empty state
-    await expect(page.locator('text=使用统计').or(page.locator('text=Usage'))).toBeVisible();
-
-    if (errors.length > 0) {
-      throw new Error(`Console errors on Usage page:\n${errors.join('\n')}`);
-    }
-  });
-
-  test('should load Settings page without errors', async ({ page }) => {
-    const errors = await checkForErrors(page);
+    await waitReady(page, 'usage');
+    await expect(page.getByText('用量统计')).toBeVisible();
+    await guards.assertClean('usage');
 
     await page.goto(`${BASE_URL}/settings`);
-    await page.waitForLoadState('networkidle');
-
-    await checkNoErrorBoundary(page);
-
-    // Should show settings
-    await expect(page.locator('text=设置').or(page.locator('text=Settings'))).toBeVisible();
-
-    if (errors.length > 0) {
-      throw new Error(`Console errors on Settings page:\n${errors.join('\n')}`);
-    }
-  });
-
-  test('should handle navigation between pages', async ({ page }) => {
-    const errors = await checkForErrors(page);
-
-    await page.goto(BASE_URL);
-    await page.waitForLoadState('networkidle');
-
-    // Navigate to each page via UI
-    const pages = ['机器人', '对话', '群组', '记忆', '任务', '密钥', '使用统计', '设置'];
-    
-    for (const pageName of pages) {
-      const link = page.locator(`text=${pageName}`).first();
-      if (await link.count() > 0) {
-        await link.click();
-        await page.waitForLoadState('networkidle');
-        await checkNoErrorBoundary(page);
-      }
-    }
-
-    if (errors.length > 0) {
-      throw new Error(`Console errors during navigation:\n${errors.join('\n')}`);
-    }
+    await waitReady(page, 'settings');
+    await expect(page.getByText('设置').first()).toBeVisible();
+    await expect(page.getByRole('button', { name: '保存' })).toBeVisible();
+    await guards.assertClean('settings');
   });
 });

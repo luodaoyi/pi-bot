@@ -35,6 +35,7 @@ export interface SecretApprovalRequest {
   name: string;
   value: string;
   scope: SecretScope;
+  purpose?: string;
 }
 
 export interface SecretListResponse {

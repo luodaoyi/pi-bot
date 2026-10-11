@@ -4,8 +4,8 @@
  * Based on DS-Bot schedules.js but adapted for pi SDK
  */
 
-import { readFile, writeFile, mkdir } from 'node:fs/promises';
-import { join } from 'node:path';
+import { readFile } from 'node:fs/promises';
+import { atomicWriteJson } from '#shared/index.js';
 import { randomUUID } from 'node:crypto';
 import { Cron } from 'croner';
 import type {
@@ -80,15 +80,7 @@ export class Scheduler {
     const state: ScheduleState = {
       schedules: Object.fromEntries(this.schedules),
     };
-
-    const dir = join(this.storePath, '..');
-    await mkdir(dir, { recursive: true });
-
-    const tmpPath = `${this.storePath}.tmp`;
-    await writeFile(tmpPath, JSON.stringify(state, null, 2), 'utf-8');
-    
-    // Atomic rename
-    await writeFile(this.storePath, JSON.stringify(state, null, 2), 'utf-8');
+    await atomicWriteJson(this.storePath, state);
   }
 
   async create(request: ScheduleCreateRequest): Promise<ScheduleConfig> {

@@ -95,18 +95,28 @@ const DEFAULT_CONFIG: Config = {
  * Load configuration from file or use defaults
  */
 export async function loadConfig(configPath?: string): Promise<Config> {
-  const path = configPath ?? join(homedir(), '.pi-bot', 'config.toml');
+  const envHome = process.env['PI_BOT_HOME'];
+  const defaultHome = envHome || join(homedir(), '.pi-bot');
+  const path = configPath ?? join(defaultHome, 'config.toml');
+
+  const base: Config = {
+    ...DEFAULT_CONFIG,
+    host: {
+      ...DEFAULT_CONFIG.host,
+      home: defaultHome,
+      workspace: envHome ? join(envHome, 'workspace') : DEFAULT_CONFIG.host.workspace,
+    },
+  };
 
   try {
     await readFile(path, 'utf-8');
     // TODO: Parse TOML (for now, just use defaults)
-    // Would use a TOML parser like @iarna/toml
     console.log(`Loaded config from: ${path}`);
-    return ConfigSchema.parse(DEFAULT_CONFIG);
+    return ConfigSchema.parse(base);
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
       console.log('No config file found, using defaults');
-      return DEFAULT_CONFIG;
+      return ConfigSchema.parse(base);
     }
     throw error;
   }
@@ -116,6 +126,10 @@ export async function loadConfig(configPath?: string): Promise<Config> {
  * Expand ~ in paths
  */
 export function expandHome(path: string): string {
+  const envHome = process.env['PI_BOT_HOME'];
+  if (envHome && (path === '~/.pi-bot' || path.startsWith('~/.pi-bot/'))) {
+    return path.replace('~/.pi-bot', envHome);
+  }
   if (path.startsWith('~/')) {
     return join(homedir(), path.slice(2));
   }

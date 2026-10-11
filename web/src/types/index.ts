@@ -41,10 +41,16 @@ export interface Group {
   id: string;
   name: string;
   members: string[];
-  admin: string;
+  admin: string[];
   mode: 'everyone' | 'admin';
   notice?: string;
   createdAt: string;
+}
+
+export interface MemoryStatus {
+  available: boolean;
+  reason?: string;
+  error?: string;
 }
 
 export interface MemoryEntry {

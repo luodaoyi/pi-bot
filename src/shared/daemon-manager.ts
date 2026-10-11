@@ -80,9 +80,26 @@ export function writePort(port: number): void {
   const dataDir = getPiBotHome();
   const portFile = getPortFilePath();
   if (!existsSync(dataDir)) {
-    require('fs').mkdirSync(dataDir, { recursive: true });
+    mkdirSync(dataDir, { recursive: true });
   }
   writeFileSync(portFile, port.toString(), 'utf-8');
+}
+
+export function deletePort(): void {
+  const portFile = getPortFilePath();
+  if (existsSync(portFile)) {
+    unlinkSync(portFile);
+  }
+}
+
+export function cleanupLeftoverFiles(): void {
+  const home = getPiBotHome();
+  for (const name of ['state.json.tmp', 'schedules.json.tmp', 'secrets.json.tmp', 'settings.json.tmp']) {
+    const leftover = join(home, name);
+    if (existsSync(leftover)) {
+      unlinkSync(leftover);
+    }
+  }
 }
 
 export function isProcessRunning(pid: number): boolean {
@@ -233,6 +250,8 @@ export async function stopDaemon(force: boolean = false): Promise<boolean> {
       if (response.ok) {
         await new Promise((resolve) => setTimeout(resolve, 1000));
         deletePid();
+        deletePort();
+        cleanupLeftoverFiles();
         return true;
       }
     } catch {
@@ -254,6 +273,8 @@ export async function stopDaemon(force: boolean = false): Promise<boolean> {
           }
           
           deletePid();
+          deletePort();
+          cleanupLeftoverFiles();
           return true;
         } catch {
           console.error(`Failed to kill process ${portPid}`);
@@ -278,14 +299,20 @@ export async function stopDaemon(force: boolean = false): Promise<boolean> {
       }
       
       deletePid();
+      deletePort();
+      cleanupLeftoverFiles();
       return true;
     } catch {
       deletePid();
+      deletePort();
+      cleanupLeftoverFiles();
       return false;
     }
   }
   
   deletePid();
+  deletePort();
+  cleanupLeftoverFiles();
   return false;
 }
 
@@ -309,6 +336,7 @@ export async function getDaemonStatus(): Promise<DaemonStatus> {
   }
   
   deletePid();
+  deletePort();
   return { running: false, port };
 }
 

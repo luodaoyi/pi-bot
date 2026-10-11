@@ -63,6 +63,30 @@ export function setupTaskRoutes(app: Hono, scheduler: Scheduler) {
     }
   });
 
+  // Toggle enabled
+  app.post('/api/tasks/:id/toggle', async (c) => {
+    const id = c.req.param('id');
+    const body = (await c.req.json().catch(() => ({}))) as { enabled?: boolean };
+
+    try {
+      const current = await scheduler.get(id);
+      if (!current) {
+        return c.json({ success: false, error: 'Schedule not found' }, 404);
+      }
+      const enabled = body.enabled ?? !current.enabled;
+      const schedule = await scheduler.update(id, { enabled });
+      return c.json({ success: true, data: { schedule } });
+    } catch (error) {
+      return c.json(
+        {
+          success: false,
+          error: error instanceof Error ? error.message : 'Failed to toggle schedule',
+        },
+        400
+      );
+    }
+  });
+
   // Delete schedule
   app.delete('/api/tasks/:id', async (c) => {
     const id = c.req.param('id');

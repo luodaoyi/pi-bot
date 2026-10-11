@@ -5,6 +5,49 @@ All notable changes to pi-agent-bot will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.0-beta.6] - 2026-10-11
+
+### Summary / 摘要
+
+**Full GUI↔daemon contract repair.** Independent verification of 0.1.0-beta.5 against a real daemon + headless Chrome found /usage crash, /memory 404 masked as empty, /settings infinite loading, /bots stuck on 加载中, /api/health 404, missing vite.svg, and leftover `state.json.tmp` / `daemon.port` after stop. This release implements the missing routes, aligns every client method with the real router, gives every view loading → data | empty | error, adds a vitest contract test, and makes Playwright E2E against the real built daemon a required gate on Ubuntu and Windows before npm publish.
+
+**完整修复 GUI 与 daemon 合同。** 针对 beta.5 的独立验证（真实 daemon + headless Chrome）发现 /usage 崩溃、/memory 404 被伪装成空列表、/settings 永久加载中、/bots 选中后聊天区永久加载中、/api/health 404、缺少 vite.svg、停止后留下 state.json.tmp 与 daemon.port。本版本补齐缺失路由、对齐全部客户端方法、为每个页面补齐加载/空/错误状态、增加合同测试，并将真实 daemon 的 Playwright E2E 作为 Ubuntu + Windows 发布门禁。
+
+### Fixed / 修复
+
+- **Usage crash:** `UsageView` read `stats.total.inputTokens` while `GET /api/usage/stats` returned `{ aggregations: [] }`. Stats now include a GUI `stats` object with `total.inputTokens` (zeros when empty); the view never dereferences undefined.
+- **Memory 404 masked as empty:** GUI called `GET /api/memory/search` (unregistered). Added `/api/memory/*` backed by Respire RPC (`127.0.0.1:15169/api/rpc`). When Respire is down, GET routes return 200 `{ available: false, reason: "Respire not running" }` and the UI shows that state — never `未找到相关记忆`.
+- **Settings infinite loading:** Implemented `GET/PATCH /api/settings` persisted in `{PI_BOT_HOME}/settings.json`, plus error + retry on the page.
+- **Bots default selection never loads history:** `loadBots` now calls `selectBot()` (prefers Chief). History errors still create an empty session so the chat pane cannot stick on 加载中.
+- **`ping()` 404:** Added `GET /api/health` alias; `GET /health` remains unenveloped for the CLI.
+- **Missing `/vite.svg`:** Added `web/public/vite.svg`.
+- **Leftover files after stop:** Atomic JSON write + `deletePort()` + cleanup of `*.json.tmp`. `PI_BOT_HOME` is honored by `loadConfig` / `expandHome`.
+- Removed production use of `MockApiClient` (`createApiClient()` always returns `HttpApiClient`).
+- Chat POST accepts `{ message }` or `{ content }`; GUI streams via POST SSE (`delta` → `text_delta`, `done` → `agent_settled`).
+- Secrets: `POST /api/secrets` create + `POST /api/secrets/:name/revoke` alias; purpose is persisted.
+- Tasks: `POST /api/tasks/:id/toggle`; GUI create form maps onto `ScheduleCreateRequest`.
+- Groups: `admin` accepts string or string[].
+- ErrorBoundary / PageErrorBoundary show error message and stack.
+- Health `version` is read from `package.json` instead of a hardcoded stale string.
+
+### Added / 新增
+
+- Vitest contract test (`tests/contract/api-contract.test.ts`) checks every GUI client route exists on the real Hono router with the expected response shape.
+- Playwright E2E (`e2e/gui.spec.ts`) against the real built daemon (fresh temp HOME, no API keys, Respire not running): visits `/`, `/bots` (Chief selected + chat), `/groups`, `/memory`, `/tasks`, `/secrets`, `/usage`, `/settings`; creates a bot, group, task, and secret through the UI; fails on `/api` 4xx/5xx, `console.error`, `pageerror`, ErrorBoundary text, or 加载中 after 5s. Screenshots uploaded as CI artifacts.
+- `e2e-gui` job on **ubuntu-latest** and **windows-latest** in `ci.yml` and as a **required `needs` gate** in `release.yml` before npm publish.
+
+### Routes added
+
+- `GET /api/health`
+- `GET/PATCH /api/settings`
+- `GET /api/memory/status|search|summary|:id`
+- `POST /api/memory/recall|remember`
+- `POST /api/bots/:botId/memory`
+- `PATCH/DELETE /api/memory/:id`
+- `POST /api/tasks/:id/toggle`
+- `POST /api/secrets` and `POST /api/secrets/:name/revoke`
+- `GET /api/usage` (GUI stats alias)
+
 ## [0.1.0-beta.5] - 2026-10-11
 
 ### Summary / 摘要
@@ -219,6 +262,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+[0.1.0-beta.6]: https://github.com/luodaoyi/pi-bot/compare/v0.1.0-beta.5...v0.1.0-beta.6
+[0.1.0-beta.5]: https://github.com/luodaoyi/pi-bot/compare/v0.1.0-beta.4...v0.1.0-beta.5
 [0.1.0-beta.4]: https://github.com/luodaoyi/pi-bot/compare/v0.1.0-beta.3...v0.1.0-beta.4
 [0.1.0-beta.3]: https://github.com/luodaoyi/pi-bot/compare/v0.1.0-beta.2...v0.1.0-beta.3
 [0.1.0-beta.2]: https://github.com/luodaoyi/pi-bot/compare/v0.1.0-beta.1...v0.1.0-beta.2

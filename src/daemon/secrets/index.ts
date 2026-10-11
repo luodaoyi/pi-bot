@@ -4,8 +4,8 @@
  * Based on DS-Bot secrets.js but adapted for pi SDK
  */
 
-import { readFile, writeFile, mkdir, chmod } from 'node:fs/promises';
-import { join } from 'node:path';
+import { readFile, chmod } from 'node:fs/promises';
+import { atomicWriteJson } from '#shared/index.js';
 import type {
   SecretConfig,
   SecretInfo,
@@ -56,18 +56,7 @@ export class SecretsManager {
     const state: SecretsState = {
       secrets: Object.fromEntries(this.secrets),
     };
-
-    const dir = join(this.storePath, '..');
-    await mkdir(dir, { recursive: true });
-
-    const tmpPath = `${this.storePath}.tmp`;
-    await writeFile(tmpPath, JSON.stringify(state, null, 2), 'utf-8');
-
-    // Set 0600 permissions (owner read/write only)
-    await chmod(tmpPath, 0o600);
-
-    // Atomic rename
-    await writeFile(this.storePath, JSON.stringify(state, null, 2), 'utf-8');
+    await atomicWriteJson(this.storePath, state, 0o600);
     await chmod(this.storePath, 0o600);
   }
 
@@ -104,7 +93,7 @@ export class SecretsManager {
       const secret: SecretConfig = {
         name,
         value: request.value,
-        purpose: request.name, // Use name as purpose fallback
+        purpose: request.purpose || request.name,
         scope: request.scope,
         requestedBy,
         createdAt: now,

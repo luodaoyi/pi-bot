@@ -10,7 +10,47 @@ permissions:
   id-token: write
 
 jobs:
+  e2e-gui:
+    name: e2e-gui (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: 'npm'
+      - run: npm ci
+      - name: Build daemon and web
+        shell: bash
+        run: |
+          npm run build
+          npm run build:web
+          npm run copy-web
+      - name: Install Playwright Chromium
+        shell: bash
+        run: |
+          if [[ "${{ matrix.os }}" == "ubuntu-latest" ]]; then
+            npx playwright install --with-deps chromium
+          else
+            npx playwright install chromium
+          fi
+      - run: npm run test:e2e
+      - name: Upload E2E screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-e2e-screenshots-${{ matrix.os }}
+          path: |
+            e2e/screenshots/
+            playwright-report/
+            test-results/
+
   release:
+    needs: e2e-gui
     runs-on: ubuntu-latest
     
     steps:

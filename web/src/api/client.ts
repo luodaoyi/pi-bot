@@ -51,7 +51,7 @@ export interface SendMessageRequest {
 export interface CreateGroupRequest {
   name: string;
   members: string[];
-  admin: string;
+  admin: string | string[];
   mode: 'everyone' | 'admin';
   notice?: string;
 }
@@ -104,7 +104,7 @@ export interface ApiClient {
   // Chat
   getChatHistory(botId: string, limit?: number): Promise<Message[]>;
   sendMessage(botId: string, data: SendMessageRequest): Promise<void>;
-  streamChat(botId: string, onEvent: (event: StreamEvent) => void): () => void;
+  streamChat(botId: string, onEvent: (event: StreamEvent) => void, content?: string): () => void;
 
   // Groups
   getGroups(): Promise<Group[]>;
@@ -116,6 +116,7 @@ export interface ApiClient {
   postToGroup(id: string, message: string): Promise<void>;
 
   // Memory (Respire integration)
+  getMemoryStatus(): Promise<import('@/types').MemoryStatus>;
   searchMemory(data: MemorySearchRequest): Promise<MemoryEntry[]>;
   getMemoryEntry(id: string): Promise<MemoryEntry>;
   writeMemory(botId: string, data: MemoryWriteRequest): Promise<MemoryEntry>;

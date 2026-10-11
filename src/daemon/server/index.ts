@@ -20,6 +20,9 @@ import { createSecretsManager } from '../secrets/index.js';
 import { createUsageTracker } from '../usage/index.js';
 import { setupRoutes } from './routes/index.js';
 import { setupSSE } from './sse.js';
+import { createSettingsStore } from '../settings/index.js';
+import { getPackageVersion } from '#shared/version.js';
+import { cleanupLeftoverFiles } from '#shared/daemon-manager.js';
 
 export async function serve(options: { configPath?: string; dev: boolean; port?: number; onReady?: () => void }) {
   const config = await loadConfig(options.configPath);
@@ -57,9 +60,11 @@ export async function serve(options: { configPath?: string; dev: boolean; port?:
   });
   
   console.log(`Daemon logs: ${logFile}`);
+  cleanupLeftoverFiles();
 
   // Initialize store
   const store = await createStore(config);
+  const settingsStore = await createSettingsStore(homeDir);
 
   // Initialize session pool
   const sessionPool = new SessionPool({
@@ -130,15 +135,23 @@ export async function serve(options: { configPath?: string; dev: boolean; port?:
   app.use('*', logger());
   app.use('*', cors());
 
+  const version = getPackageVersion();
+  const healthPayload = () => ({
+    status: 'ok' as const,
+    version,
+    pid: process.pid,
+    home: homeDir,
+    timestamp: new Date().toISOString(),
+  });
+
   // Health check with process info
   app.get('/health', (c) => {
-    return c.json({
-      status: 'ok',
-      version: '0.1.0-beta.5',
-      pid: process.pid,
-      home: homeDir,
-      timestamp: new Date().toISOString(),
-    });
+    return c.json(healthPayload());
+  });
+
+  // GUI ping() 别名
+  app.get('/api/health', (c) => {
+    return c.json({ success: true, data: healthPayload() });
   });
 
   // Mount all feature routes
@@ -149,6 +162,8 @@ export async function serve(options: { configPath?: string; dev: boolean; port?:
     scheduler,
     secrets,
     usage,
+    settingsStore,
+    respirePort: config.respire.port,
   });
 
   // SSE endpoint
