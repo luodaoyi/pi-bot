@@ -1,3 +1,4 @@
+#!/usr/bin/env node
 /**
  * CLI entry point
  * Re-exports the daemon CLI
