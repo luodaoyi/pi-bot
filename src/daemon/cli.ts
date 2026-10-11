@@ -4,6 +4,9 @@
  */
 
 import { parseArgs } from 'node:util';
+import { readFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
+import { dirname, join } from 'node:path';
 import { serve } from './server/index.js';
 import { init } from './commands/init.js';
 import { doctor } from './commands/doctor.js';
@@ -16,7 +19,13 @@ import {
   writePort,
 } from '#shared/daemon-manager.js';
 
-const VERSION = '0.1.0';
+// Read version from package.json
+// In dist/cli.js, __dirname is dist/daemon, so go up 2 levels to project root
+const __dirname = dirname(fileURLToPath(import.meta.url));
+const packageJson = JSON.parse(
+  readFileSync(join(__dirname, '../..', 'package.json'), 'utf-8')
+);
+const VERSION = packageJson.version;
 
 async function main() {
   const { values, positionals } = parseArgs({
