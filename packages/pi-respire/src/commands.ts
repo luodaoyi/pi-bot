@@ -20,7 +20,7 @@ export function registerCommands(
   // /respire status
   pi.registerCommand('respire', {
     description: 'Show Respire memory system status',
-    async execute(_extCtx: unknown) {
+    execute: async (_extCtx: unknown) => {
       const boot = ctx.getBootState();
       const gate = ctx.getGateState();
 
@@ -43,12 +43,12 @@ export function registerCommands(
 
       return status;
     },
-  });
+  } as any);
 
   // /boot (manually trigger boot reload)
   pi.registerCommand('boot', {
     description: 'Reload Respire policy (for debugging)',
-    async execute(_extCtx: unknown) {
+    execute: async (_extCtx: unknown) => {
       // This would require triggering session_start again
       // For now, just show current boot state
       const boot = ctx.getBootState();
@@ -63,5 +63,5 @@ export function registerCommands(
         `Policy loaded: ${boot.policyText.length > 0 ? 'Yes' : 'No'}`
       );
     },
-  });
+  } as any);
 }
