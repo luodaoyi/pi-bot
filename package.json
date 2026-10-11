@@ -27,10 +27,10 @@
     "respire"
   ],
   "scripts": {
-    "prepack": "pnpm run build && pnpm run build:web && pnpm run copy-web",
+    "prepack": "npm run build && npm run build:web && npm run copy-web",
     "copy-web": "rm -rf dist/web && mkdir -p dist/web && cp -r web/dist/* dist/web/",
     "build": "tsc -b",
-    "build:web": "cd web && pnpm install && pnpm build",
+    "build:web": "cd web && npm install && npm run build",
     "dev": "tsx watch src/daemon/cli.ts serve --dev",
     "start": "node dist/cli.js serve",
     "test": "vitest run",
@@ -70,10 +70,5 @@
   },
   "engines": {
     "node": ">=22.19.0"
-  },
-  "pnpm": {
-    "overrides": {
-      "rollup": "4.63.3"
-    }
   }
 }
