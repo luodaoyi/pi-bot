@@ -1,0 +1,12 @@
+Pi-Bot Web GUI
+Copyright 2026
+
+This product includes software developed from DeepSeek-Bot (https://github.com/FeiZhuLulu/DeepSeek-Bot)
+DeepSeek-Bot is licensed under the Apache License 2.0
+
+The UI components, layout, and UX patterns have been adapted from DeepSeek-Bot's web interface
+while being rebuilt as a standalone single-page application for pi-bot.
+
+Original DeepSeek-Bot Copyright Notice:
+Copyright (c) FeiZhuLulu and contributors
+Licensed under the Apache License, Version 2.0
