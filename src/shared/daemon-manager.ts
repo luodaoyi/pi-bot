@@ -47,7 +47,11 @@ export function readPid(): number | null {
 }
 
 export function writePid(pid: number): void {
+  const dataDir = getPiBotHome();
   const pidFile = getPidFilePath();
+  if (!existsSync(dataDir)) {
+    require('fs').mkdirSync(dataDir, { recursive: true });
+  }
   writeFileSync(pidFile, pid.toString(), 'utf-8');
 }
 
@@ -73,7 +77,11 @@ export function readPort(): number {
 }
 
 export function writePort(port: number): void {
+  const dataDir = getPiBotHome();
   const portFile = getPortFilePath();
+  if (!existsSync(dataDir)) {
+    require('fs').mkdirSync(dataDir, { recursive: true });
+  }
   writeFileSync(portFile, port.toString(), 'utf-8');
 }
 
