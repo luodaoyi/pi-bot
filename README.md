@@ -26,11 +26,24 @@ This monorepo contains:
 - **`@pi-bot/shared`**: Shared types and utilities
 - **`@pi-bot/web`**: React web interface (coming soon)
 
+## Pi Package Gallery
+
+pi-bot is discoverable in Pi's official package gallery. To appear in the gallery, packages must include:
+
+- **Keywords**: `pi-package` and `pi-coding-agent` in `package.json`
+- **Pi Manifest**: The `pi` field with:
+  - `extensions`: Array of extension entry points
+  - `image` (optional): Cover image URL for gallery display
+  - `homepage` (optional): Package homepage URL
+- **Standard Metadata**: `description`, `repository`, `homepage`, `license`
+
+See [pi documentation](https://github.com/earendil-works/pi) for details.
+
 ## Prerequisites
 
-- **Node.js**: >= 22.19.0
-- **pnpm**: >= 8.0.0
-- **Respire Runtime**: [rsrs](https://github.com/cablehead/xs) for memory backend
+- **Node.js**: >= 22.19.0 (requires `node:sqlite` for built-in SQLite support)
+- **Pi Coding Agent**: [@earendil-works/pi-coding-agent](https://github.com/earendil-works/pi) >= 1.1.0
+- **Respire Runtime**: [rsrs](https://github.com/cablehead/xs) for memory backend (optional)
 
 ## Installation
 

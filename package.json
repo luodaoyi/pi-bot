@@ -1,7 +1,7 @@
 {
   "name": "pi-bot",
-  "version": "0.1.0",
-  "description": "Multi-bot daemon with Pi SDK and Respire memory",
+  "version": "0.1.0-beta.0",
+  "description": "Multi-bot daemon with Pi SDK, Respire memory, team coordination, and web GUI for managing AI agents",
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
@@ -17,21 +17,26 @@
   },
   "pi": {
     "name": "pi-bot",
-    "version": "0.1.0",
-    "description": "Multi-bot daemon with Pi SDK and Respire memory",
+    "version": "0.1.0-beta.0",
+    "description": "Multi-bot daemon with Pi SDK, Respire memory, team coordination, and web GUI for managing AI agents",
     "main": "./dist/index.js",
     "extensions": [
       "./dist/respire-extension/index.js"
-    ]
+    ],
+    "homepage": "https://github.com/luodaoyi/pi-bot#readme"
   },
   "files": [
     "dist"
   ],
   "keywords": [
-    "pi-bot",
     "pi-package",
+    "pi-coding-agent",
+    "pi",
     "multi-agent",
-    "respire"
+    "bot-daemon",
+    "respire",
+    "ai-agents",
+    "team-coordination"
   ],
   "scripts": {
     "prepack": "npm run build && npm run build:web && npm run copy-web",
@@ -51,7 +56,11 @@
   "license": "Apache-2.0",
   "repository": {
     "type": "git",
-    "url": "https://github.com/luodaoyi/pi-bot.git"
+    "url": "git+https://github.com/luodaoyi/pi-bot.git"
+  },
+  "homepage": "https://github.com/luodaoyi/pi-bot#readme",
+  "bugs": {
+    "url": "https://github.com/luodaoyi/pi-bot/issues"
   },
   "dependencies": {
     "@hono/node-server": "^2.1.4",
