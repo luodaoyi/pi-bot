@@ -69,7 +69,12 @@ jobs:
           # Install tarball
           mkdir -p /tmp/e2e-test && cd /tmp/e2e-test
           npm init -y
-          npm install ${{ github.workspace }}/pi-bot-0.1.0-beta.0.tgz
+          TARBALL_PATH="${{ github.workspace }}/pi-bot-0.1.0-beta.0.tgz"
+          # Convert Windows path to Unix path if needed
+          if [[ "$OSTYPE" == "msys" ]] || [[ "$OSTYPE" == "win32" ]]; then
+            TARBALL_PATH="$(cygpath -u "$TARBALL_PATH")"
+          fi
+          npm install "$TARBALL_PATH"
           
           # Start daemon in background
           node node_modules/pi-bot/dist/cli.js serve --dev &
