@@ -16,8 +16,7 @@
     "extensions": []
   },
   "files": [
-    "dist",
-    "../web/dist"
+    "dist"
   ],
   "keywords": [
     "pi-bot",
@@ -26,6 +25,8 @@
     "respire"
   ],
   "scripts": {
+    "prepack": "pnpm run copy-web",
+    "copy-web": "rm -rf dist/web && mkdir -p dist/web && cp -r ../web/dist/* dist/web/",
     "build": "tsc -b",
     "dev": "tsx watch src/cli.ts serve --dev",
     "start": "node dist/cli.js serve",
@@ -40,8 +41,8 @@
   "license": "Apache-2.0",
   "dependencies": {
     "@hono/node-server": "^2.1.4",
-    "@pi-bot/respire-client": "workspace:*",
-    "@pi-bot/shared": "workspace:*",
+    "@pi-bot/respire-client": "^0.1.0",
+    "@pi-bot/shared": "^0.1.0",
     "@types/better-sqlite3": "^9.6.0",
     "better-sqlite3": "^13.0.3",
     "croner": "^10.0.1",
