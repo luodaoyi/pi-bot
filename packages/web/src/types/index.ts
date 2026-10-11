@@ -21,6 +21,15 @@ export interface Message {
   fromBot?: string;
   toolCalls?: ToolCall[];
   streaming?: boolean;
+  metadata?: {
+    hops?: Array<{
+      botId: string;
+      content: string;
+      direction: 'outgoing' | 'incoming';
+      timestamp: string;
+    }>;
+    passed?: boolean;
+  };
 }
 
 export interface ToolCall {
@@ -113,8 +122,6 @@ export interface ModelInfo {
 export interface Settings {
   language: 'zh-CN' | 'en-US';
   theme: 'light' | 'dark' | 'auto';
-  memoryBackend: 'respire' | 'markdown' | 'off';
-  memoryReview: boolean;
   maxSessions: number;
 }
 

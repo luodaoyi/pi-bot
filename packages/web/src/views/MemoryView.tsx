@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { Search, Plus, Edit, Trash2, Brain } from 'lucide-react';
 import { createApiClient } from '@/api';
 import type { MemoryEntry } from '@/types';
+import { MemoryFormModal } from '@/components/MemoryFormModal';
 
 const api = createApiClient();
 
@@ -13,6 +14,8 @@ export const MemoryView: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [scope, setScope] = useState<'all' | 'bot' | 'team'>('all');
   const [summary, setSummary] = useState('');
+  const [showMemoryModal, setShowMemoryModal] = useState(false);
+  const [editingEntry, setEditingEntry] = useState<MemoryEntry | undefined>(undefined);
 
   const loadMemory = async () => {
     setLoading(true);
@@ -36,6 +39,30 @@ export const MemoryView: React.FC = () => {
     }
   };
 
+  const handleCreateMemory = () => {
+    setEditingEntry(undefined);
+    setShowMemoryModal(true);
+  };
+
+  const handleEditMemory = (entry: MemoryEntry) => {
+    setEditingEntry(entry);
+    setShowMemoryModal(true);
+  };
+
+  const handleDeleteMemory = async (entry: MemoryEntry) => {
+    if (!confirm(`${t('common.delete')} this memory?`)) return;
+    try {
+      await api.forgetMemory(entry.id);
+      await loadMemory();
+    } catch (error) {
+      console.error('Failed to delete memory:', error);
+    }
+  };
+
+  const handleMemorySuccess = async () => {
+    await loadMemory();
+  };
+
   useEffect(() => {
     loadMemory();
   }, [scope]);
@@ -56,6 +83,13 @@ export const MemoryView: React.FC = () => {
               </p>
             </div>
           </div>
+          <button
+            onClick={handleCreateMemory}
+            className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+          >
+            <Plus size={20} />
+            {t('memory.write')}
+          </button>
         </div>
 
         {/* Search Bar */}
@@ -119,10 +153,16 @@ export const MemoryView: React.FC = () => {
                     <p className="text-gray-700 dark:text-gray-300">{entry.content}</p>
                   </div>
                   <div className="flex gap-2 ml-4">
-                    <button className="p-2 text-gray-500 hover:text-blue-600 transition-colors">
+                    <button
+                      onClick={() => handleEditMemory(entry)}
+                      className="p-2 text-gray-500 hover:text-blue-600 transition-colors"
+                    >
                       <Edit size={16} />
                     </button>
-                    <button className="p-2 text-gray-500 hover:text-red-600 transition-colors">
+                    <button
+                      onClick={() => handleDeleteMemory(entry)}
+                      className="p-2 text-gray-500 hover:text-red-600 transition-colors"
+                    >
                       <Trash2 size={16} />
                     </button>
                   </div>
@@ -149,6 +189,13 @@ export const MemoryView: React.FC = () => {
           </div>
         )}
       </div>
+
+      <MemoryFormModal
+        entry={editingEntry}
+        isOpen={showMemoryModal}
+        onClose={() => setShowMemoryModal(false)}
+        onSuccess={handleMemorySuccess}
+      />
     </div>
   );
 };

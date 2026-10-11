@@ -109,7 +109,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       sessions.set(botId, { ...session });
       set({ chatSessions: new Map(sessions) });
 
-      const cleanup = api.streamChat(botId, (event) => {
+      api.streamChat(botId, (event) => {
         const currentSessions = get().chatSessions;
         const currentSession = currentSessions.get(botId);
         if (!currentSession) return;

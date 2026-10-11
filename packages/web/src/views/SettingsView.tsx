@@ -1,16 +1,24 @@
 import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Settings as SettingsIcon } from 'lucide-react';
+import { Settings as SettingsIcon, Activity, CheckCircle, XCircle, RefreshCw } from 'lucide-react';
 import { createApiClient } from '@/api';
 import type { Settings } from '@/types';
 
 const api = createApiClient();
 
+interface RespireStatus {
+  connected: boolean;
+  version?: string;
+  error?: string;
+}
+
 export const SettingsView: React.FC = () => {
   const { t, i18n } = useTranslation();
   const [settings, setSettings] = useState<Settings | null>(null);
+  const [respireStatus, setRespireStatus] = useState<RespireStatus | null>(null);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [checkingRespire, setCheckingRespire] = useState(false);
 
   const loadSettings = async () => {
     setLoading(true);
@@ -21,6 +29,32 @@ export const SettingsView: React.FC = () => {
       console.error('Failed to load settings:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const checkRespireStatus = async () => {
+    setCheckingRespire(true);
+    try {
+      const response = await fetch('/api/health');
+      if (response.ok) {
+        const data = await response.json();
+        setRespireStatus({
+          connected: data.respire === 'connected',
+          version: data.respireVersion,
+        });
+      } else {
+        setRespireStatus({
+          connected: false,
+          error: 'Health check failed',
+        });
+      }
+    } catch (error) {
+      setRespireStatus({
+        connected: false,
+        error: error instanceof Error ? error.message : 'Connection failed',
+      });
+    } finally {
+      setCheckingRespire(false);
     }
   };
 
@@ -40,6 +74,7 @@ export const SettingsView: React.FC = () => {
 
   useEffect(() => {
     loadSettings();
+    checkRespireStatus();
   }, []);
 
   if (loading || !settings) {
@@ -96,35 +131,63 @@ export const SettingsView: React.FC = () => {
             </select>
           </div>
 
-          {/* Memory Backend */}
+          {/* Respire Memory Status */}
           <div className="p-4 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700">
-            <label className="block text-sm font-medium text-gray-900 dark:text-white mb-2">
-              {t('settings.memoryBackend')}
-            </label>
-            <select
-              value={settings.memoryBackend}
-              onChange={(e) => setSettings({ ...settings, memoryBackend: e.target.value as 'respire' | 'markdown' | 'off' })}
-              className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
-            >
-              <option value="respire">{t('settings.memoryBackendRespire')}</option>
-              <option value="markdown">{t('settings.memoryBackendMarkdown')}</option>
-              <option value="off">{t('settings.memoryBackendOff')}</option>
-            </select>
-          </div>
+            <div className="flex items-center justify-between mb-3">
+              <label className="text-sm font-medium text-gray-900 dark:text-white flex items-center gap-2">
+                <Activity size={18} />
+                {t('settings.respireStatus')}
+              </label>
+              <button
+                onClick={checkRespireStatus}
+                disabled={checkingRespire}
+                className="p-2 text-gray-500 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded transition-colors disabled:opacity-50"
+                title="Refresh status"
+              >
+                <RefreshCw size={16} className={checkingRespire ? 'animate-spin' : ''} />
+              </button>
+            </div>
 
-          {/* Memory Review */}
-          <div className="p-4 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700">
-            <label className="flex items-center gap-3">
-              <input
-                type="checkbox"
-                checked={settings.memoryReview}
-                onChange={(e) => setSettings({ ...settings, memoryReview: e.target.checked })}
-                className="w-5 h-5 text-blue-600 rounded"
-              />
-              <span className="text-sm font-medium text-gray-900 dark:text-white">
-                {t('settings.memoryReview')}
-              </span>
-            </label>
+            {respireStatus ? (
+              <div className={`flex items-start gap-3 p-3 rounded-lg border ${
+                respireStatus.connected
+                  ? 'bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800'
+                  : 'bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800'
+              }`}>
+                {respireStatus.connected ? (
+                  <CheckCircle className="flex-shrink-0 text-green-600 dark:text-green-400" size={20} />
+                ) : (
+                  <XCircle className="flex-shrink-0 text-red-600 dark:text-red-400" size={20} />
+                )}
+                <div className="flex-1">
+                  <div className={`font-medium ${
+                    respireStatus.connected
+                      ? 'text-green-800 dark:text-green-200'
+                      : 'text-red-800 dark:text-red-200'
+                  }`}>
+                    {respireStatus.connected ? 'Connected' : 'Disconnected'}
+                  </div>
+                  {respireStatus.version && (
+                    <div className="text-sm text-green-700 dark:text-green-300 mt-1">
+                      Version: {respireStatus.version}
+                    </div>
+                  )}
+                  {respireStatus.error && (
+                    <div className="text-sm text-red-700 dark:text-red-300 mt-1">
+                      {respireStatus.error}
+                    </div>
+                  )}
+                </div>
+              </div>
+            ) : (
+              <div className="text-sm text-gray-500">
+                {checkingRespire ? 'Checking...' : 'Status unknown'}
+              </div>
+            )}
+
+            <p className="text-xs text-gray-500 dark:text-gray-400 mt-3">
+              pi-bot uses a single global Respire memory backend for all bots. Memory is persistent across sessions.
+            </p>
           </div>
 
           {/* Max Sessions */}
@@ -140,6 +203,9 @@ export const SettingsView: React.FC = () => {
               min="1"
               max="64"
             />
+            <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
+              Maximum concurrent chat sessions to keep in memory
+            </p>
           </div>
 
           {/* Save Button */}

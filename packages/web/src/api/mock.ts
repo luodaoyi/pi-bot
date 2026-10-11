@@ -42,8 +42,6 @@ export class MockApiClient implements ApiClient {
     this.settings = {
       language: 'zh-CN',
       theme: 'auto',
-      memoryBackend: 'respire',
-      memoryReview: false,
       maxSessions: 16,
     };
     this.initializeMockData();

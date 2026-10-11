@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { Calendar, Plus, Edit, Trash2, Clock } from 'lucide-react';
 import { createApiClient } from '@/api';
 import type { ScheduledTask } from '@/types';
+import { TaskFormModal } from '@/components/TaskFormModal';
 
 const api = createApiClient();
 
@@ -10,6 +11,8 @@ export const TasksView: React.FC = () => {
   const { t } = useTranslation();
   const [tasks, setTasks] = useState<ScheduledTask[]>([]);
   const [loading, setLoading] = useState(false);
+  const [showTaskModal, setShowTaskModal] = useState(false);
+  const [editingTask, setEditingTask] = useState<ScheduledTask | undefined>(undefined);
 
   const loadTasks = async () => {
     setLoading(true);
@@ -32,6 +35,30 @@ export const TasksView: React.FC = () => {
     }
   };
 
+  const handleCreateTask = () => {
+    setEditingTask(undefined);
+    setShowTaskModal(true);
+  };
+
+  const handleEditTask = (task: ScheduledTask) => {
+    setEditingTask(task);
+    setShowTaskModal(true);
+  };
+
+  const handleDeleteTask = async (task: ScheduledTask) => {
+    if (!confirm(`${t('common.delete')} "${task.name}"?`)) return;
+    try {
+      await api.deleteTask(task.id);
+      await loadTasks();
+    } catch (error) {
+      console.error('Failed to delete task:', error);
+    }
+  };
+
+  const handleTaskSuccess = async () => {
+    await loadTasks();
+  };
+
   useEffect(() => {
     loadTasks();
   }, []);
@@ -48,7 +75,10 @@ export const TasksView: React.FC = () => {
               </h1>
             </div>
           </div>
-          <button className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
+          <button
+            onClick={handleCreateTask}
+            className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+          >
             <Plus size={20} />
             {t('task.create')}
           </button>
@@ -99,10 +129,16 @@ export const TasksView: React.FC = () => {
                       />
                       <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 dark:peer-focus:ring-blue-800 rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-blue-600"></div>
                     </label>
-                    <button className="p-2 text-gray-500 hover:text-blue-600 transition-colors">
+                    <button
+                      onClick={() => handleEditTask(task)}
+                      className="p-2 text-gray-500 hover:text-blue-600 transition-colors"
+                    >
                       <Edit size={16} />
                     </button>
-                    <button className="p-2 text-gray-500 hover:text-red-600 transition-colors">
+                    <button
+                      onClick={() => handleDeleteTask(task)}
+                      className="p-2 text-gray-500 hover:text-red-600 transition-colors"
+                    >
                       <Trash2 size={16} />
                     </button>
                   </div>
@@ -112,6 +148,13 @@ export const TasksView: React.FC = () => {
           </div>
         )}
       </div>
+
+      <TaskFormModal
+        task={editingTask}
+        isOpen={showTaskModal}
+        onClose={() => setShowTaskModal(false)}
+        onSuccess={handleTaskSuccess}
+      />
     </div>
   );
 };

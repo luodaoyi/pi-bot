@@ -116,11 +116,7 @@
     "themeLight": "浅色",
     "themeDark": "深色",
     "themeAuto": "自动",
-    "memoryBackend": "记忆后端",
-    "memoryBackendRespire": "Respire",
-    "memoryBackendMarkdown": "Markdown",
-    "memoryBackendOff": "关闭",
-    "memoryReview": "自动复审",
+    "respireStatus": "Respire 记忆状态",
     "maxSessions": "最大会话数"
   },
   "common": {

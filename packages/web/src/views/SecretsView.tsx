@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { Key, Plus } from 'lucide-react';
 import { createApiClient } from '@/api';
 import type { Secret } from '@/types';
+import { SecretFormModal } from '@/components/SecretFormModal';
 
 const api = createApiClient();
 
@@ -10,6 +11,7 @@ export const SecretsView: React.FC = () => {
   const { t } = useTranslation();
   const [secrets, setSecrets] = useState<Secret[]>([]);
   const [loading, setLoading] = useState(false);
+  const [showSecretModal, setShowSecretModal] = useState(false);
 
   const loadSecrets = async () => {
     setLoading(true);
@@ -21,6 +23,10 @@ export const SecretsView: React.FC = () => {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleSecretSuccess = async () => {
+    await loadSecrets();
   };
 
   useEffect(() => {
@@ -39,7 +45,10 @@ export const SecretsView: React.FC = () => {
               </h1>
             </div>
           </div>
-          <button className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
+          <button
+            onClick={() => setShowSecretModal(true)}
+            className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+          >
             <Plus size={20} />
             {t('secret.request')}
           </button>
@@ -76,6 +85,12 @@ export const SecretsView: React.FC = () => {
           </div>
         )}
       </div>
+
+      <SecretFormModal
+        isOpen={showSecretModal}
+        onClose={() => setShowSecretModal(false)}
+        onSuccess={handleSecretSuccess}
+      />
     </div>
   );
 };

@@ -116,11 +116,7 @@
     "themeLight": "Light",
     "themeDark": "Dark",
     "themeAuto": "Auto",
-    "memoryBackend": "Memory Backend",
-    "memoryBackendRespire": "Respire",
-    "memoryBackendMarkdown": "Markdown",
-    "memoryBackendOff": "Off",
-    "memoryReview": "Auto Review",
+    "respireStatus": "Respire Memory Status",
     "maxSessions": "Max Sessions"
   },
   "common": {
