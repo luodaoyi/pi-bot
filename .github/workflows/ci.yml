@@ -111,11 +111,21 @@ jobs:
           # Test GUI
           curl -s http://localhost:8787/ | grep -i "<!doctype html>" || (echo "GUI not loading" && kill $DAEMON_PID && exit 1)
           
-          # Create a bot
-          BOT_ID=$(curl -s -X POST http://localhost:8787/api/bots \
+          # Create a bot - response is now {success: true, data: {bot: {...}}}
+          RESPONSE=$(curl -s -X POST http://localhost:8787/api/bots \
             -H "Content-Type: application/json" \
-            -d '{"name":"TestBot","role":"assistant","instructions":"Test","model":{"provider":"mock","modelId":"test"}}' \
-            | grep -o '"id":"[^"]*"' | cut -d'"' -f4)
+            -d '{"name":"TestBot","role":"assistant","instructions":"Test","model":{"provider":"mock","modelId":"test"}}')
+          echo "Bot creation response: $RESPONSE"
+          
+          # Extract bot ID from {success: true, data: {bot: {id: "..."}}}
+          BOT_ID=$(echo "$RESPONSE" | grep -o '"id":"[^"]*"' | head -1 | cut -d'"' -f4)
+          
+          if [ -z "$BOT_ID" ]; then
+            echo "Failed to create bot or extract ID"
+            echo "Response: $RESPONSE"
+            kill $DAEMON_PID
+            exit 1
+          fi
           
           echo "Created bot: $BOT_ID"
           
