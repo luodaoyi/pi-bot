@@ -14,8 +14,11 @@
   "scripts": {
     "build": "tsc -b",
     "dev": "tsc -b --watch",
+    "test": "echo 'No tests for shared types package'",
     "clean": "rm -rf dist *.tsbuildinfo",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint src --ext .ts",
+    "lint:fix": "eslint src --ext .ts --fix"
   },
   "keywords": ["pi-bot", "types"],
   "author": "pi-bot contributors",

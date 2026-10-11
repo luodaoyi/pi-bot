@@ -2,7 +2,12 @@
  * Recall gate: Enforce "first tool must be recall" rule
  */
 
-import type { ExtensionAPI } from '@earendil-works/pi-coding-agent';
+import type {
+  ExtensionAPI,
+  AgentBeforeSettleEvent,
+  AgentBeforeSettleEventResult,
+  ExtensionContext,
+} from '@earendil-works/pi-coding-agent';
 import type { RespireClient } from '@pi-bot/respire-client';
 import type { RespireExtensionOptions, BootState, GateState } from './types.js';
 
@@ -136,21 +141,40 @@ export function setupGate(
     }
   });
 
-  // TODO: Check at turn end for missing recall
-  // The agent_before_settle event requires special handling; commenting out for now
-  // pi.on('agent_before_settle', (_event, _extCtx) => {
-  //   const bootState = ctx.getBootState();
-  //   const gateState = ctx.getState();
-  //
-  //   if (bootState?.mode === 'off' || options.settleRecall === 'off') {
-  //     return;
-  //   }
-  //
-  //   if (!gateState.recallAttempted) {
-  //     const reminder = 'Reminder: You did not call respire_recall this turn...';
-  //     console.warn(reminder);
-  //   }
-  // });
+  // Check at turn end for missing recall
+  pi.on('agent_before_settle', (_event: AgentBeforeSettleEvent, _extCtx: ExtensionContext): AgentBeforeSettleEventResult | void => {
+    const bootState = ctx.getBootState();
+    const gateState = ctx.getState();
+
+    if (bootState?.mode === 'off' || options.settleRecall === 'off') {
+      return;
+    }
+
+    if (!gateState.recallAttempted) {
+      const reminder =
+        'Reminder: You did not call respire_recall this turn. ' +
+        'Per policy, you should attempt recall at the start of each turn.';
+
+      if (options.settleRecall === 'warn') {
+        console.warn(reminder);
+      }
+
+      if (options.settleRecall === 'continue') {
+        // Inject reminder message for the agent to continue
+        return {
+          continue: true,
+          entries: [
+            {
+              type: 'custom_message' as const,
+              customType: 'respire_recall_reminder',
+              content: reminder,
+              display: true,
+            },
+          ],
+        };
+      }
+    }
+  });
 }
 
 function isRecallTool(toolName: string, input: unknown): boolean {

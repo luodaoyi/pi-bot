@@ -2,7 +2,7 @@
  * Register slash commands for pi-respire
  */
 
-import type { ExtensionAPI } from '@earendil-works/pi-coding-agent';
+import type { ExtensionAPI, ExtensionCommandContext } from '@earendil-works/pi-coding-agent';
 import type { RespireClient } from '@pi-bot/respire-client';
 import type { RespireExtensionOptions, BootState, GateState } from './types.js';
 
@@ -20,12 +20,13 @@ export function registerCommands(
   // /respire status
   pi.registerCommand('respire', {
     description: 'Show Respire memory system status',
-    execute: async (_extCtx: unknown) => {
+    handler: async (_args: string, _extCtx: ExtensionCommandContext) => {
       const boot = ctx.getBootState();
       const gate = ctx.getGateState();
 
       if (!boot) {
-        return 'Respire not initialized (session not started yet)';
+        console.log('Respire not initialized (session not started yet)');
+        return;
       }
 
       let status = `# Respire Status\n\n`;
@@ -41,27 +42,29 @@ export function registerCommands(
         status += `**Blocks**: ${gate.blockCount}\n`;
       }
 
-      return status;
+      console.log(status);
     },
-  } as any);
+  });
 
   // /boot (manually trigger boot reload)
   pi.registerCommand('boot', {
     description: 'Reload Respire policy (for debugging)',
-    execute: async (_extCtx: unknown) => {
+    handler: async (_args: string, _extCtx: ExtensionCommandContext) => {
       // This would require triggering session_start again
       // For now, just show current boot state
       const boot = ctx.getBootState();
 
       if (!boot) {
-        return 'Boot state not available. Use at session start.';
+        console.log('Boot state not available. Use at session start.');
+        return;
       }
 
-      return (
+      const message =
         `Boot timestamp: ${new Date(boot.timestamp).toISOString()}\n` +
         `Mode: ${boot.mode}\n` +
-        `Policy loaded: ${boot.policyText.length > 0 ? 'Yes' : 'No'}`
-      );
+        `Policy loaded: ${boot.policyText.length > 0 ? 'Yes' : 'No'}`;
+
+      console.log(message);
     },
-  } as any);
+  });
 }
