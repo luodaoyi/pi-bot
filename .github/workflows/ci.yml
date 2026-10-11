@@ -82,7 +82,7 @@ jobs:
           curl -f http://localhost:8787/health || (echo "Health check failed" && kill $DAEMON_PID && exit 1)
           
           # Test GUI
-          curl -s http://localhost:8787/ | grep "<!doctype html>" || (echo "GUI not loading" && kill $DAEMON_PID && exit 1)
+          curl -s http://localhost:8787/ | grep -i "<!doctype html>" || (echo "GUI not loading" && kill $DAEMON_PID && exit 1)
           
           # Create a bot
           BOT_ID=$(curl -s -X POST http://localhost:8787/api/bots \
