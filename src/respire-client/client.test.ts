@@ -4,11 +4,30 @@
  */
 
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { RespireClient } from './client.js';
+import { mkdirSync, writeFileSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { RespireClient, findRsrsExecutable } from './client.js';
 import { RespireError } from './errors.js';
 
 // Mock fetch globally
 global.fetch = vi.fn();
+
+describe('findRsrsExecutable', () => {
+  it('splits PATH with path.delimiter and only returns a real file', () => {
+    const dir = join(tmpdir(), `rsrs-path-${Date.now()}`);
+    mkdirSync(dir, { recursive: true });
+    const name = process.platform === 'win32' ? 'rsrs.exe' : 'rsrs';
+    const file = join(dir, name);
+    writeFileSync(file, '');
+    try {
+      expect(findRsrsExecutable(dir)).toBe(file);
+      expect(findRsrsExecutable('')).toBeUndefined();
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+});
 
 describe('RespireClient', () => {
   let client: RespireClient;

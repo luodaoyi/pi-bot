@@ -33,6 +33,7 @@ describe('GUI ↔ daemon API contract', () => {
   beforeAll(async () => {
     tmp = await mkdtemp(join(tmpdir(), 'pi-bot-contract-'));
     process.env['PI_BOT_HOME'] = tmp;
+    process.env['PI_CODING_AGENT_DIR'] = join(tmp, 'pi-agent');
     const config = await loadConfig();
     const store = await createStore(config);
     await store.bootstrap();
@@ -141,6 +142,8 @@ describe('GUI ↔ daemon API contract', () => {
       { method: 'GET', path: '/api/usage/stats?period=week' },
       { method: 'GET', path: '/api/usage/records' },
       { method: 'GET', path: '/api/settings' },
+      { method: 'GET', path: '/api/models' },
+      { method: 'GET', path: '/api/providers' },
       { method: 'GET', path: '/api/system/status' },
       { method: 'GET', path: '/api/system/models' },
     ];
@@ -188,14 +191,54 @@ describe('GUI ↔ daemon API contract', () => {
     const patch = await app.request('/api/settings', {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ language: 'en-US' }),
+      body: JSON.stringify({
+        language: 'en-US',
+        idleTimeoutMinutes: 15,
+        defaultModel: null,
+        loadUserExtensions: true,
+      }),
     });
-    const patched = await patch.json() as { success: boolean; data: { settings: { language: string } } };
+    const patched = await patch.json() as {
+      success: boolean;
+      data: { settings: {
+        language: string;
+        idleTimeoutMinutes: number;
+        defaultModel: null;
+        loadUserExtensions: boolean;
+        workdir: string;
+      } };
+    };
     expect(patched.success).toBe(true);
     expect(patched.data.settings.language).toBe('en-US');
+    expect(patched.data.settings.idleTimeoutMinutes).toBe(15);
+    expect(patched.data.settings.defaultModel).toBeNull();
+    expect(patched.data.settings.loadUserExtensions).toBe(true);
+    expect(patched.data.settings.workdir).toBeTruthy();
 
     const get = await app.request('/api/settings');
-    const got = await get.json() as { data: { settings: { language: string } } };
+    const got = await get.json() as { data: { settings: { language: string; defaultModel: null } } };
     expect(got.data.settings.language).toBe('en-US');
+    expect(got.data.settings.defaultModel).toBeNull();
+  });
+
+  it('models catalog is from the SDK, not the hardcoded deepseek list', async () => {
+    const res = await app.request('/api/models');
+    const json = await res.json() as {
+      success: boolean;
+      data: {
+        models: Array<{ provider: string; id: string; hasAuth: boolean; reasoning: boolean; input: string[] }>;
+        defaultModel: { provider: string; id: string } | null;
+        defaultThinking: string | null;
+      };
+    };
+    expect(json.success).toBe(true);
+    expect(json.data.models.length).toBeGreaterThan(2);
+    expect(json.data.models.every((m) => typeof m.hasAuth === 'boolean')).toBe(true);
+    const ids = json.data.models.map((m) => `${m.provider}/${m.id}`);
+    expect(ids).not.toEqual(['deepseek/deepseek-chat', 'deepseek/deepseek-reasoner']);
+
+    const alias = await app.request('/api/system/models');
+    const aliased = await alias.json() as { data: { models: unknown[] } };
+    expect(aliased.data.models).toHaveLength(json.data.models.length);
   });
 });

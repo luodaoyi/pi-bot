@@ -6,6 +6,7 @@
 import { randomUUID } from 'node:crypto';
 import { existsSync } from 'node:fs';
 import { spawn } from 'node:child_process';
+import { delimiter, join } from 'node:path';
 import { RespireError } from './errors.js';
 import {
   assertRpcSuccess,
@@ -29,6 +30,24 @@ import type {
 
 const DEFAULT_PORT = 15169;
 const DEFAULT_TIMEOUT = 120000; // 120 seconds
+
+/** 在 PATH 上查找 rsrs 可执行文件。Windows 按 `path.delimiter` 拆分并匹配 .exe/.cmd。 */
+export function findRsrsExecutable(pathEnv = process.env['PATH'] ?? ''): string | undefined {
+  const names =
+    process.platform === 'win32' ? ['rsrs.exe', 'rsrs.cmd', 'rsrs.bat', 'rsrs'] : ['rsrs'];
+  for (const dir of pathEnv.split(delimiter)) {
+    if (!dir) continue;
+    for (const name of names) {
+      const candidate = join(dir, name);
+      try {
+        if (existsSync(candidate)) return candidate;
+      } catch {
+        // 忽略无法访问的 PATH 项
+      }
+    }
+  }
+  return undefined;
+}
 
 export class RespireClient {
   private readonly port: number;
@@ -157,22 +176,15 @@ export class RespireClient {
         throw error;
       }
 
-      // Try to start runtime by invoking CLI once
-      const rsrsPath = process.env['PATH']?.split(':')
-        .map((p) => `${p}/rsrs`)
-        .find((p) => {
-          try {
-            return existsSync(p);
-          } catch {
-            return false;
-          }
-        });
+      // 找到 PATH 上的 rsrs 才启动（Windows 用 path.delimiter 和 .exe/.cmd）
+      const rsrsPath = findRsrsExecutable();
 
-      if (!rsrsPath && process.env['RSRS_CLIENT_ONLY'] !== '1') {
+      if (rsrsPath && process.env['RSRS_CLIENT_ONLY'] !== '1') {
         // Trigger daemon start via CLI
         await new Promise<void>((resolve, reject) => {
-          const child = spawn('rsrs', ['--json', 'status'], {
+          const child = spawn(rsrsPath, ['--json', 'status'], {
             stdio: 'ignore',
+            windowsHide: true,
           });
 
           child.on('exit', (code) => {

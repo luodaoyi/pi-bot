@@ -3,6 +3,7 @@
  * pi-bot CLI entrypoint
  */
 
+import './win-hide.js';
 import { parseArgs } from 'node:util';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
@@ -72,14 +73,15 @@ async function main() {
       }
 
       case 'open': {
-        const { port, started, pid } = await ensureDaemon();
+        const port = values.port ? parseInt(values.port, 10) : 8787;
+        const { port: boundPort, started, pid } = await ensureDaemon(port);
         const { getHealthInfo } = await import('#shared/daemon-manager.js');
-        const health = await getHealthInfo(port);
+        const health = await getHealthInfo(boundPort);
         
         if (started) {
-          console.log(`✓ Daemon started (PID: ${pid}, port: ${port})`);
+          console.log(`✓ Daemon started (PID: ${pid}, port: ${boundPort})`);
         } else {
-          console.log(`✓ Daemon already running (PID: ${health?.pid || pid}, port: ${port})`);
+          console.log(`✓ Daemon already running (PID: ${health?.pid || pid}, port: ${boundPort})`);
         }
         
         if (health) {
@@ -87,7 +89,7 @@ async function main() {
           console.log(`  Home: ${health.home}`);
         }
         
-        const url = `http://localhost:${port}`;
+        const url = `http://localhost:${boundPort}`;
         if (!values['no-browser']) {
           console.log(`Opening ${url} in browser...`);
           openUrl(url);

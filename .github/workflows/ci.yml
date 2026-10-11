@@ -43,6 +43,11 @@ jobs:
       
       - name: Test
         run: npm test
+
+      - name: Windows spawn hide + CLI lifecycle
+        if: runner.os == 'Windows'
+        shell: bash
+        run: npx vitest run tests/windows-spawn.test.ts src/daemon/win-hide.test.ts
       
       - name: Pack tarball
         run: npm pack
