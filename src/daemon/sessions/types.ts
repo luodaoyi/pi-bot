@@ -3,6 +3,13 @@
  */
 
 import type { CreateAgentSessionResult, AgentSession } from '@earendil-works/pi-coding-agent';
+import type {
+  BotSseEvent,
+  ChatSessionSummary,
+  SessionStats,
+  ThinkingLevel,
+} from '#shared/index.js';
+import type { AgentSessionServices, ModelRuntime } from '@earendil-works/pi-coding-agent';
 
 export interface SessionInfo {
   botId: string;
@@ -17,6 +24,13 @@ export interface SessionPoolConfig {
   maxSessions: number;
   idleTimeoutMs: number;
   sessionDir: string;
+  workspaceDir?: string;
+  loadUserExtensions?: boolean;
+  loadContextFiles?: boolean;
+  /** Injected shared services (daemon or tests). Created lazily if omitted. */
+  services?: AgentSessionServices;
+  modelRuntime?: ModelRuntime;
+  agentDir?: string;
 }
 
 export interface SessionPoolStats {
@@ -31,9 +45,12 @@ export interface SessionPoolStats {
  */
 export interface BotSession {
   botId: string;
+  sessionId: string;
   result: CreateAgentSessionResult;
   session: AgentSession;
   info: SessionInfo;
+  unsubscribe?: () => void;
+  runId?: string;
 }
 
 /**
@@ -43,18 +60,22 @@ export interface DeliveryOptions {
   from?: string; // Sender bot ID or 'user'
   replyTo?: 'me' | 'user'; // Route reply back to sender or to user
   hop?: number; // Hop count for cycle detection
+  sessionId?: string;
 }
 
 /**
  * Session event types
  */
-export type SessionEvent = 
-  | { type: 'session_created'; botId: string }
-  | { type: 'session_destroyed'; botId: string }
+export type SessionEvent =
+  | { type: 'session_created'; botId: string; sessionId?: string }
+  | { type: 'session_destroyed'; botId: string; sessionId?: string }
   | { type: 'session_idle'; botId: string }
   | { type: 'message_start'; botId: string; messageId: string }
   | { type: 'message_update'; botId: string; messageId: string; delta?: string; text?: string }
   | { type: 'message_end'; botId: string; messageId: string; text: string }
   | { type: 'tool_call'; botId: string; tool: string; args: unknown }
   | { type: 'status_change'; botId: string; status: 'idle' | 'active' | 'settling' }
-  | { type: 'error'; botId: string; error: string };
+  | { type: 'error'; botId: string; error: string }
+  | { type: 'bot_event'; event: BotSseEvent };
+
+export type { ChatSessionSummary, SessionStats, ThinkingLevel };

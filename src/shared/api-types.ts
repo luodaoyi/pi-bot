@@ -5,18 +5,24 @@
 
 import type {
   BotConfig,
+  BotModel,
   GroupConfig,
+  ModelRef,
   Schedule,
   Secret,
+  ThinkingLevel,
 } from './bot-types.js';
 import type { RecallResult, RememberResult } from './memory-types.js';
 
 // Re-export request types for convenience
 export type {
   BotCreateRequest,
+  BotModel,
   BotUpdateRequest,
   GroupCreateRequest,
+  ModelRef,
   SecretCreateRequest,
+  ThinkingLevel,
 } from './bot-types.js';
 export type { RememberRequest } from './memory-types.js';
 
@@ -290,6 +296,102 @@ export interface OAuthPollResponse {
 }
 
 // ============================================================================
+// Sessions
+// ============================================================================
+
+export interface SessionStats {
+  tokens: {
+    input: number;
+    output: number;
+    cacheRead: number;
+    cacheWrite: number;
+    total: number;
+  };
+  cost: number;
+  contextUsage: {
+    tokens: number;
+    contextWindow: number;
+    percent: number;
+  } | null;
+}
+
+export interface ChatSessionSummary {
+  id: string;
+  name?: string;
+  createdAt: string;
+  updatedAt: string;
+  messageCount: number;
+  model: BotModel;
+  thinking: ThinkingLevel | null;
+  isActive: boolean;
+}
+
+export interface ChatSessionDetail {
+  session: ChatSessionSummary;
+  messages: unknown[];
+  stats: SessionStats;
+}
+
+export interface CreateSessionRequest {
+  name?: string;
+}
+
+export interface PatchSessionRequest {
+  name?: string;
+  model?: ModelRef | null;
+  thinking?: ThinkingLevel | null;
+}
+
+export interface ForkSessionRequest {
+  entryId: string;
+}
+
+export interface ChatRequest {
+  message?: string;
+  content?: string;
+  sessionId?: string;
+}
+
+export interface ChatAccepted {
+  sessionId: string;
+  runId: string;
+}
+
+export interface AbortRequest {
+  sessionId?: string;
+}
+
+export type BotSseEventType =
+  | 'bot.message_start'
+  | 'bot.text_delta'
+  | 'bot.thinking_delta'
+  | 'bot.tool_start'
+  | 'bot.tool_update'
+  | 'bot.tool_end'
+  | 'bot.message_end'
+  | 'bot.turn_end'
+  | 'bot.error'
+  | 'bot.stats';
+
+export interface BotSseEvent {
+  type: BotSseEventType;
+  botId: string;
+  sessionId: string;
+  runId: string;
+  role?: string;
+  delta?: string;
+  text?: string;
+  toolCallId?: string;
+  toolName?: string;
+  args?: unknown;
+  result?: unknown;
+  isError?: boolean;
+  error?: string;
+  stats?: SessionStats;
+  [key: string]: unknown;
+}
+
+// ============================================================================
 // Server-Sent Events (SSE)
 // ============================================================================
 
@@ -300,7 +402,8 @@ export type SSEEvent =
   | { type: 'bot_created'; bot: BotConfig }
   | { type: 'bot_updated'; bot: BotConfig }
   | { type: 'bot_deleted'; id: string }
-  | { type: 'system'; message: string };
+  | { type: 'system'; message: string }
+  | BotSseEvent;
 
 export interface MessageUpdateData {
   messageId: string;

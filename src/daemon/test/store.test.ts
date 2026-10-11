@@ -71,7 +71,7 @@ describe('Store', () => {
             name: 'Test Bot',
             role: 'tester',
             instructions: 'Test instructions',
-            model: { provider: 'deepseek', modelId: 'deepseek-chat' },
+            model: { provider: 'openai', id: 'gpt-4o' },
             isMain: true,
             created: new Date().toISOString(),
             segments: [],
@@ -107,8 +107,8 @@ describe('Store', () => {
           role: 'Assistant',
           instructions: 'Help with tests',
           model: {
-            provider: 'deepseek',
-            modelId: 'deepseek-chat',
+            provider: 'openai',
+            id: 'gpt-4o',
           },
         });
 
@@ -124,8 +124,8 @@ describe('Store', () => {
           role: 'Main',
           instructions: 'Lead bot',
           model: {
-            provider: 'deepseek',
-            modelId: 'deepseek-chat',
+            provider: 'openai',
+            id: 'gpt-4o',
           },
           isMain: true,
         });
@@ -145,8 +145,8 @@ describe('Store', () => {
           role: 'Eventer',
           instructions: 'Emit events',
           model: {
-            provider: 'deepseek',
-            modelId: 'deepseek-chat',
+            provider: 'openai',
+            id: 'gpt-4o',
           },
         });
 
@@ -166,8 +166,8 @@ describe('Store', () => {
           role: 'Persistent',
           instructions: 'Stay around',
           model: {
-            provider: 'deepseek',
-            modelId: 'deepseek-chat',
+            provider: 'openai',
+            id: 'gpt-4o',
           },
         });
 
@@ -185,8 +185,8 @@ describe('Store', () => {
           role: 'Getter',
           instructions: 'Get me',
           model: {
-            provider: 'deepseek',
-            modelId: 'deepseek-chat',
+            provider: 'openai',
+            id: 'gpt-4o',
           },
         });
 
@@ -210,8 +210,8 @@ describe('Store', () => {
           role: 'First',
           instructions: 'First bot',
           model: {
-            provider: 'deepseek',
-            modelId: 'deepseek-chat',
+            provider: 'openai',
+            id: 'gpt-4o',
           },
         });
 
@@ -220,8 +220,8 @@ describe('Store', () => {
           role: 'Second',
           instructions: 'Second bot',
           model: {
-            provider: 'deepseek',
-            modelId: 'deepseek-chat',
+            provider: 'openai',
+            id: 'gpt-4o',
           },
         });
 
@@ -245,8 +245,8 @@ describe('Store', () => {
           role: 'Role',
           instructions: 'Instructions',
           model: {
-            provider: 'deepseek',
-            modelId: 'deepseek-chat',
+            provider: 'openai',
+            id: 'gpt-4o',
           },
         });
 
@@ -264,8 +264,8 @@ describe('Store', () => {
           role: 'Role',
           instructions: 'Instructions',
           model: {
-            provider: 'deepseek',
-            modelId: 'deepseek-chat',
+            provider: 'openai',
+            id: 'gpt-4o',
           },
         });
 
@@ -276,7 +276,7 @@ describe('Store', () => {
           },
         });
 
-        expect(updated.model.modelId).toBe('deepseek-reasoner');
+        expect(updated.model?.id).toBe('deepseek-reasoner');
       });
 
       it('should emit bot_updated event', async () => {
@@ -285,8 +285,8 @@ describe('Store', () => {
           role: 'Role',
           instructions: 'Instructions',
           model: {
-            provider: 'deepseek',
-            modelId: 'deepseek-chat',
+            provider: 'openai',
+            id: 'gpt-4o',
           },
         });
 
@@ -319,8 +319,8 @@ describe('Store', () => {
           role: 'Role',
           instructions: 'Instructions',
           model: {
-            provider: 'deepseek',
-            modelId: 'deepseek-chat',
+            provider: 'openai',
+            id: 'gpt-4o',
           },
         });
 
@@ -336,8 +336,8 @@ describe('Store', () => {
           role: 'Main',
           instructions: 'Instructions',
           model: {
-            provider: 'deepseek',
-            modelId: 'deepseek-chat',
+            provider: 'openai',
+            id: 'gpt-4o',
           },
           isMain: true,
         });
@@ -354,8 +354,8 @@ describe('Store', () => {
           role: 'Role',
           instructions: 'Instructions',
           model: {
-            provider: 'deepseek',
-            modelId: 'deepseek-chat',
+            provider: 'openai',
+            id: 'gpt-4o',
           },
         });
 
@@ -388,8 +388,54 @@ describe('Store', () => {
       const bots = await store.listBots();
 
       expect(bots).toHaveLength(1);
-      expect(bots[0].name).toBe('Chief');
-      expect(bots[0].isMain).toBe(true);
+      expect(bots[0]!.name).toBe('Chief');
+      expect(bots[0]!.isMain).toBe(true);
+      expect(bots[0]!.model).toBeNull();
+    });
+
+    it('migrates legacy deepseek-chat and custom models to null', async () => {
+      const statePath = join(testDir, 'state.json');
+      await writeFile(
+        statePath,
+        JSON.stringify({
+          version: 1,
+          workspaceId: 'ws',
+          mainBotIds: ['bot-legacy'],
+          bots: {
+            'bot-legacy': {
+              id: 'bot-legacy',
+              name: 'Old Chief',
+              role: 'main',
+              instructions: 'old',
+              model: { provider: 'deepseek', modelId: 'deepseek-chat' },
+              isMain: true,
+              created: new Date().toISOString(),
+              segments: [],
+            },
+            'bot-custom': {
+              id: 'bot-custom',
+              name: 'Custom',
+              role: 'x',
+              instructions: 'x',
+              model: 'custom/foo',
+              isMain: false,
+              created: new Date().toISOString(),
+              segments: [],
+            },
+          },
+          groups: {},
+          schedules: [],
+          secrets: {},
+          revision: 1,
+        }),
+        'utf-8'
+      );
+
+      const store = await createStore(testConfig);
+      const legacy = await store.getBot('bot-legacy');
+      const custom = await store.getBot('bot-custom');
+      expect(legacy?.model).toBeNull();
+      expect(custom?.model).toBeNull();
     });
 
     it('should not create duplicate Chief bot', async () => {

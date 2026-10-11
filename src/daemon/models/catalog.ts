@@ -1,6 +1,7 @@
 /**
  * 从 pi SDK 模型目录（built-ins + models.json）列出模型，不做硬编码。
  */
+import { isLegacyDefaultModel } from './resolve.js';
 import { getModelRuntime, getPiSettingsManager } from './runtime.js';
 
 export interface CatalogModel {
@@ -36,7 +37,7 @@ export async function listCatalog(): Promise<CatalogResponse> {
   const defaultProvider = settings.getDefaultProvider();
   const defaultModelId = settings.getDefaultModel();
   const defaultModel =
-    defaultProvider && defaultModelId
+    defaultProvider && defaultModelId && !isLegacyDefaultModel(defaultProvider, defaultModelId)
       ? { provider: defaultProvider, id: defaultModelId }
       : null;
 

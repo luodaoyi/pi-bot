@@ -2,15 +2,24 @@
  * Bot configuration and state types
  */
 
+export type ThinkingLevel = 'off' | 'minimal' | 'low' | 'medium' | 'high' | 'xhigh';
+
+/** Canonical bot/session model reference. null = follow pi default. */
+export interface ModelRef {
+  provider: string;
+  id: string;
+}
+
+export type BotModel = ModelRef | null;
+
 export interface BotConfig {
   id: string;
   name: string;
   role: string;
   instructions: string;
-  model: {
-    provider: string;
-    modelId: string;
-  };
+  /** null = follow pi settings default / first available model */
+  model: BotModel;
+  thinking?: ThinkingLevel | null;
   look?: {
     avatar?: string;
     color?: string;
@@ -18,16 +27,15 @@ export interface BotConfig {
   isMain: boolean;
   created: string;
   segments: string[]; // Session IDs for different conversation parts
+  activeSessionId?: string | null;
 }
 
 export interface BotCreateRequest {
   name: string;
   role: string;
   instructions: string;
-  model: {
-    provider: string;
-    modelId: string;
-  };
+  model?: BotModel | { provider: string; modelId?: string; id?: string } | string | null;
+  thinking?: ThinkingLevel | null;
   look?: {
     avatar?: string;
     color?: string;
@@ -39,14 +47,13 @@ export interface BotUpdateRequest {
   name?: string;
   role?: string;
   instructions?: string;
-  model?: {
-    provider: string;
-    modelId: string;
-  };
+  model?: BotModel | { provider: string; modelId?: string; id?: string } | string | null;
+  thinking?: ThinkingLevel | null;
   look?: {
     avatar?: string;
     color?: string;
   };
+  activeSessionId?: string | null;
 }
 
 export interface GroupConfig {
