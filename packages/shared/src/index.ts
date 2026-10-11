@@ -1,3 +1,6 @@
 export * from './api-types.js';
 export * from './bot-types.js';
 export * from './memory-types.js';
+export * from './scheduler-types.js';
+export * from './secrets-types.js';
+export * from './usage-types.js';
