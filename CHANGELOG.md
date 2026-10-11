@@ -15,7 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed / 修复
 
-- **Usage crash:** `UsageView` read `stats.total.inputTokens` while `GET /api/usage/stats` returned `{ aggregations: [] }`. Stats now include a GUI `stats` object with `total.inputTokens` (zeros when empty); the view never dereferences undefined.
+- **Usage crash:** `UsageView` read `stats.total.inputTokens` while `GET /api/usage/stats` returned `{ aggregations: [] }`. Stats now include a GUI `stats` object with `total.inputTokens` (zeros when empty); the view never dereferences undefined. ([69baf41](https://github.com/luodaoyi/pi-bot/commit/69baf41))
 - **Memory 404 masked as empty:** GUI called `GET /api/memory/search` (unregistered). Added `/api/memory/*` backed by Respire RPC (`127.0.0.1:15169/api/rpc`). When Respire is down, GET routes return 200 `{ available: false, reason: "Respire not running" }` and the UI shows that state — never `未找到相关记忆`.
 - **Settings infinite loading:** Implemented `GET/PATCH /api/settings` persisted in `{PI_BOT_HOME}/settings.json`, plus error + retry on the page.
 - **Bots default selection never loads history:** `loadBots` now calls `selectBot()` (prefers Chief). History errors still create an empty session so the chat pane cannot stick on 加载中.
