@@ -14,8 +14,6 @@ import type {
 } from './bot-types.js';
 import type { RecallResult, RememberResult } from './memory-types.js';
 
-export type { ThinkingLevel, ModelRef } from './bot-types.js';
-
 // Re-export request types for convenience
 export type {
   BotCreateRequest,
