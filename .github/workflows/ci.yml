@@ -53,23 +53,32 @@ jobs:
       - name: Test pi install
         shell: bash
         run: |
+          # Get version from package.json
+          VERSION=$(node -p "require('./package.json').version")
+          TARBALL="pi-agent-bot-${VERSION}.tgz"
+          echo "Testing tarball: $TARBALL"
+          
           # Extract tarball to temp dir
           mkdir -p /tmp/pi-bot-test
-          tar -xzf pi-agent-bot-0.1.0-beta.0.tgz -C /tmp/pi-bot-test --strip-components=1
+          tar -xzf "$TARBALL" -C /tmp/pi-bot-test --strip-components=1
           
           # Install as Pi package
           pi install /tmp/pi-bot-test
           
           # Verify extension is loaded
-          pi list | grep "pi-bot" || (echo "pi-bot not found in pi list" && exit 1)
+          pi list | grep "pi-agent-bot" || (echo "pi-agent-bot not found in pi list" && exit 1)
       
       - name: E2E Smoke Test
         shell: bash
         run: |
+          # Get version from package.json
+          VERSION=$(node -p "require('${{ github.workspace }}/package.json').version")
+          echo "Testing version: $VERSION"
+          
           # Install tarball
           mkdir -p /tmp/e2e-test && cd /tmp/e2e-test
           npm init -y
-          TARBALL_PATH="${{ github.workspace }}/pi-agent-bot-0.1.0-beta.0.tgz"
+          TARBALL_PATH="${{ github.workspace }}/pi-agent-bot-${VERSION}.tgz"
           # Convert Windows path to Unix path if needed
           if [[ "$OSTYPE" == "msys" ]] || [[ "$OSTYPE" == "win32" ]]; then
             TARBALL_PATH="$(cygpath -u "$TARBALL_PATH")"
