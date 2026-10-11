@@ -4,9 +4,10 @@ import path from 'path';
 export default defineConfig({
   test: {
     globals: true,
-    include: ['src/**/*.test.ts', 'web/src/**/*.test.ts'],
+    include: ['src/**/*.test.ts', 'web/src/**/*.test.ts', 'tests/**/*.test.ts'],
     environmentMatchGlobs: [
       ['web/src/**/*.test.ts', 'jsdom'],
+      ['tests/ui/**/*.test.ts', 'jsdom'],
     ],
     pool: 'forks',
   },

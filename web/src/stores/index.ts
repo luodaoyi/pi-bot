@@ -40,16 +40,19 @@ export const useAppStore = create<AppState>((set, get) => ({
     try {
       set({ loading: true, error: null });
       const bots = await api.getBots();
-      set({ bots, loading: false });
+      // Defensive: ensure bots is an array
+      const botsArray = Array.isArray(bots) ? bots : [];
+      set({ bots: botsArray, loading: false });
       
       // Select first bot if none selected
-      if (!get().selectedBotId && bots.length > 0) {
-        set({ selectedBotId: bots[0].id });
+      if (!get().selectedBotId && botsArray.length > 0) {
+        set({ selectedBotId: botsArray[0].id });
       }
     } catch (error) {
       set({ 
         error: error instanceof Error ? error.message : 'Failed to load bots',
-        loading: false 
+        loading: false,
+        bots: [] // Ensure bots is always an array
       });
     }
   },

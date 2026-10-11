@@ -26,14 +26,21 @@ import {
   type RequestSecretRequest,
 } from './client';
 
+interface ApiResponse<T> {
+  success: boolean;
+  data?: T;
+  error?: string;
+}
+
 export class HttpApiClient implements ApiClient {
-  constructor(private baseUrl: string = 'http://127.0.0.1:8787') {}
+  constructor(private baseUrl: string = '/api') {}
 
   private async request<T>(
     path: string,
     options: RequestInit = {}
   ): Promise<T> {
-    const response = await fetch(`${this.baseUrl}${path}`, {
+    const url = path.startsWith('/api') ? path : `/api${path}`;
+    const response = await fetch(`${this.baseUrl}${url.replace('/api', '')}`, {
       ...options,
       headers: {
         'Content-Type': 'application/json',
@@ -41,12 +48,20 @@ export class HttpApiClient implements ApiClient {
       },
     });
 
-    if (!response.ok) {
-      const error = await response.json().catch(() => ({ message: response.statusText }));
-      throw new ApiError(response.status, error.message || 'Request failed', error);
+    const result = await response.json().catch(() => ({
+      success: false,
+      error: response.statusText,
+    })) as ApiResponse<T>;
+
+    if (!response.ok || !result.success) {
+      throw new ApiError(
+        response.status,
+        result.error || 'Request failed',
+        result
+      );
     }
 
-    return response.json();
+    return result.data as T;
   }
 
   async ping(): Promise<{ status: 'ok'; version: string }> {
@@ -54,44 +69,51 @@ export class HttpApiClient implements ApiClient {
   }
 
   async getBots(): Promise<Bot[]> {
-    return this.request('/api/bots');
+    const data = await this.request<{ bots: Bot[] }>('/api/bots');
+    return data.bots;
   }
 
   async getBot(id: string): Promise<Bot> {
-    return this.request(`/api/bots/${id}`);
+    const data = await this.request<{ bot: Bot }>(`/api/bots/${id}`);
+    return data.bot;
   }
 
   async createBot(data: CreateBotRequest): Promise<Bot> {
-    return this.request('/api/bots', {
+    const result = await this.request<{ bot: Bot }>('/api/bots', {
       method: 'POST',
       body: JSON.stringify(data),
     });
+    return result.bot;
   }
 
   async updateBot(id: string, data: UpdateBotRequest): Promise<Bot> {
-    return this.request(`/api/bots/${id}`, {
+    const result = await this.request<{ bot: Bot }>(`/api/bots/${id}`, {
       method: 'PATCH',
       body: JSON.stringify(data),
     });
+    return result.bot;
   }
 
   async deleteBot(id: string): Promise<void> {
-    await this.request(`/api/bots/${id}`, { method: 'DELETE' });
+    await this.request<{ success: boolean }>(`/api/bots/${id}`, { method: 'DELETE' });
   }
 
   async getChatHistory(botId: string, limit = 50): Promise<Message[]> {
-    return this.request(`/api/bots/${botId}/messages?limit=${limit}`);
+    const data = await this.request<{ messages: Message[] }>(
+      `/api/bots/${botId}/history?limit=${limit}`
+    );
+    return data.messages || [];
   }
 
   async sendMessage(botId: string, data: SendMessageRequest): Promise<void> {
-    await this.request(`/api/bots/${botId}/messages`, {
+    await this.request(`/api/bots/${botId}/chat`, {
       method: 'POST',
       body: JSON.stringify(data),
     });
   }
 
   streamChat(botId: string, onEvent: (event: StreamEvent) => void): () => void {
-    const eventSource = new EventSource(`${this.baseUrl}/api/bots/${botId}/stream`);
+    const eventSource = new EventSource(`${this.baseUrl}/bots/${botId}/chat`);
     
     eventSource.onmessage = (e) => {
       try {
@@ -111,37 +133,44 @@ export class HttpApiClient implements ApiClient {
   }
 
   async getGroups(): Promise<Group[]> {
-    return this.request('/api/groups');
+    const data = await this.request<{ groups: Group[] }>('/api/groups');
+    return data.groups || [];
   }
 
   async getGroup(id: string): Promise<Group> {
-    return this.request(`/api/groups/${id}`);
+    const data = await this.request<{ group: Group }>(`/api/groups/${id}`);
+    return data.group;
   }
 
   async createGroup(data: CreateGroupRequest): Promise<Group> {
-    return this.request('/api/groups', {
+    const result = await this.request<{ group: Group }>('/api/groups', {
       method: 'POST',
       body: JSON.stringify(data),
     });
+    return result.group;
   }
 
   async updateGroup(id: string, data: Partial<CreateGroupRequest>): Promise<Group> {
-    return this.request(`/api/groups/${id}`, {
+    const result = await this.request<{ group: Group }>(`/api/groups/${id}`, {
       method: 'PATCH',
       body: JSON.stringify(data),
     });
+    return result.group;
   }
 
   async deleteGroup(id: string): Promise<void> {
-    await this.request(`/api/groups/${id}`, { method: 'DELETE' });
+    await this.request<{ success: boolean }>(`/api/groups/${id}`, { method: 'DELETE' });
   }
 
   async getGroupMessages(id: string, limit = 50): Promise<Message[]> {
-    return this.request(`/api/groups/${id}/messages?limit=${limit}`);
+    const data = await this.request<{ log: Message[] }>(
+      `/api/groups/${id}/history?limit=${limit}`
+    );
+    return data.log || [];
   }
 
   async postToGroup(id: string, message: string): Promise<void> {
-    await this.request(`/api/groups/${id}/messages`, {
+    await this.request(`/api/groups/${id}/post`, {
       method: 'POST',
       body: JSON.stringify({ message }),
     });
@@ -152,29 +181,35 @@ export class HttpApiClient implements ApiClient {
     if (data.query) params.set('query', data.query);
     if (data.scope) params.set('scope', data.scope);
     if (data.limit) params.set('limit', data.limit.toString());
-    return this.request(`/api/memory/search?${params}`);
+    const result = await this.request<{ entries?: MemoryEntry[] }>(
+      `/api/memory/search?${params}`
+    );
+    return result.entries || [];
   }
 
   async getMemoryEntry(id: string): Promise<MemoryEntry> {
-    return this.request(`/api/memory/${id}`);
+    const data = await this.request<{ entry: MemoryEntry }>(`/api/memory/${id}`);
+    return data.entry;
   }
 
   async writeMemory(botId: string, data: MemoryWriteRequest): Promise<MemoryEntry> {
-    return this.request(`/api/bots/${botId}/memory`, {
+    const result = await this.request<{ entry: MemoryEntry }>(`/api/bots/${botId}/memory`, {
       method: 'POST',
       body: JSON.stringify(data),
     });
+    return result.entry;
   }
 
   async updateMemory(id: string, content: string): Promise<MemoryEntry> {
-    return this.request(`/api/memory/${id}`, {
+    const result = await this.request<{ entry: MemoryEntry }>(`/api/memory/${id}`, {
       method: 'PATCH',
       body: JSON.stringify({ content }),
     });
+    return result.entry;
   }
 
   async forgetMemory(id: string): Promise<void> {
-    await this.request(`/api/memory/${id}`, { method: 'DELETE' });
+    await this.request<{ success: boolean }>(`/api/memory/${id}`, { method: 'DELETE' });
   }
 
   async getMemorySummary(scope: 'bot' | 'team', botId?: string): Promise<string> {
@@ -185,40 +220,46 @@ export class HttpApiClient implements ApiClient {
   }
 
   async getTasks(): Promise<ScheduledTask[]> {
-    return this.request('/api/tasks');
+    const data = await this.request<{ schedules: ScheduledTask[] }>('/api/tasks');
+    return data.schedules || [];
   }
 
   async getTask(id: string): Promise<ScheduledTask> {
-    return this.request(`/api/tasks/${id}`);
+    const data = await this.request<{ schedule: ScheduledTask }>(`/api/tasks/${id}`);
+    return data.schedule;
   }
 
   async createTask(data: CreateScheduleRequest): Promise<ScheduledTask> {
-    return this.request('/api/tasks', {
+    const result = await this.request<{ schedule: ScheduledTask }>('/api/tasks', {
       method: 'POST',
       body: JSON.stringify(data),
     });
+    return result.schedule;
   }
 
   async updateTask(id: string, data: Partial<CreateScheduleRequest>): Promise<ScheduledTask> {
-    return this.request(`/api/tasks/${id}`, {
+    const result = await this.request<{ schedule: ScheduledTask }>(`/api/tasks/${id}`, {
       method: 'PATCH',
       body: JSON.stringify(data),
     });
+    return result.schedule;
   }
 
   async deleteTask(id: string): Promise<void> {
-    await this.request(`/api/tasks/${id}`, { method: 'DELETE' });
+    await this.request<{ success: boolean }>(`/api/tasks/${id}`, { method: 'DELETE' });
   }
 
   async toggleTask(id: string, enabled: boolean): Promise<ScheduledTask> {
-    return this.request(`/api/tasks/${id}/toggle`, {
+    const result = await this.request<{ schedule: ScheduledTask }>(`/api/tasks/${id}/toggle`, {
       method: 'POST',
       body: JSON.stringify({ enabled }),
     });
+    return result.schedule;
   }
 
   async getSecrets(): Promise<Secret[]> {
-    return this.request('/api/secrets');
+    const data = await this.request<{ secrets: Secret[] }>('/api/secrets');
+    return data.secrets || [];
   }
 
   async requestSecret(data: RequestSecretRequest): Promise<void> {
@@ -238,21 +279,27 @@ export class HttpApiClient implements ApiClient {
   async getUsageStats(period: 'day' | 'week' | 'month', startDate?: string): Promise<UsageStats> {
     const params = new URLSearchParams({ period });
     if (startDate) params.set('startDate', startDate);
-    return this.request(`/api/usage?${params}`);
+    const data = await this.request<{ stats?: UsageStats; aggregations?: unknown }>(
+      `/api/usage/stats?${params}`
+    );
+    return (data.stats || data) as UsageStats;
   }
 
   async getAvailableModels(): Promise<ModelInfo[]> {
-    return this.request('/api/models');
+    const data = await this.request<{ models: ModelInfo[] }>('/api/system/models');
+    return data.models || [];
   }
 
   async getSettings(): Promise<Settings> {
-    return this.request('/api/settings');
+    const data = await this.request<{ settings?: Settings }>('/api/settings');
+    return data.settings || ({} as Settings);
   }
 
   async updateSettings(data: Partial<Settings>): Promise<Settings> {
-    return this.request('/api/settings', {
+    const result = await this.request<{ settings: Settings }>('/api/settings', {
       method: 'PATCH',
       body: JSON.stringify(data),
     });
+    return result.settings;
   }
 }
