@@ -1,7 +1,36 @@
 /**
  * Shared GUI ↔ daemon contract types.
- * Mirror of src/shared/api-types.ts + settings-types.ts + bot-types.ts.
+ * Mirror of src/shared/api-types.ts + settings-types.ts + bot-types.ts，并补充 GUI 会话字段。
  */
+
+export type ThinkingLevel =
+  | 'off'
+  | 'minimal'
+  | 'low'
+  | 'medium'
+  | 'high'
+  | 'xhigh'
+  | 'max';
+
+export const THINKING_LEVELS: ThinkingLevel[] = [
+  'off',
+  'minimal',
+  'low',
+  'medium',
+  'high',
+  'xhigh',
+  'max',
+];
+
+export type ThinkingLevelSetting = ThinkingLevel;
+
+export interface ModelRef {
+  provider: string;
+  id: string;
+}
+
+export type SettingsModelRef = ModelRef;
+export type BotModel = ModelRef | null;
 
 export interface ModelInfo {
   provider: string;
@@ -11,13 +40,22 @@ export interface ModelInfo {
   reasoning: boolean;
   input: string[];
   hasAuth: boolean;
+  /** @deprecated 旧 GUI 字段；新合同用 id */
+  modelId?: string;
+  supportsVision?: boolean;
+  supportsThinking?: boolean;
 }
+
+/** GET /api/models 条目 */
+export type PiModel = ModelInfo;
 
 export interface ListModelsResponse {
   models: ModelInfo[];
-  defaultModel: { provider: string; id: string } | null;
-  defaultThinking: string | null;
+  defaultModel: ModelRef | null;
+  defaultThinking: ThinkingLevel | null;
 }
+
+export type ModelsResponse = ListModelsResponse;
 
 export interface ProviderInfo {
   id: string;
@@ -41,6 +79,7 @@ export interface PutProviderApiKeyResponse {
 
 export interface DeleteProviderAuthResponse {
   configured: false;
+  existed: boolean;
 }
 
 export interface OAuthStartResponse {
@@ -48,50 +87,16 @@ export interface OAuthStartResponse {
   flowId: string;
 }
 
+export type OAuthStart = OAuthStartResponse;
+
 export interface OAuthPollResponse {
   status: 'pending' | 'done' | 'error';
   error?: string;
 }
 
-export type ThinkingLevelSetting =
-  | 'off'
-  | 'minimal'
-  | 'low'
-  | 'medium'
-  | 'high'
-  | 'xhigh'
-  | 'max';
+export type OAuthStatus = OAuthPollResponse;
 
-export interface SettingsModelRef {
-  provider: string;
-  id: string;
-}
-
-export interface GuiSettings {
-  language: 'zh-CN' | 'en-US';
-  theme: 'light' | 'dark' | 'auto';
-  memoryBackend: 'respire' | 'markdown' | 'off';
-  memoryReview: boolean;
-  maxSessions: number;
-  idleTimeoutMinutes: number;
-  defaultModel: SettingsModelRef | null;
-  defaultThinking: ThinkingLevelSetting | null;
-  loadUserExtensions: boolean;
-  loadContextFiles: boolean;
-  timezone: string;
-  workdir: string;
-}
-
-export type ThinkingLevel = 'off' | 'minimal' | 'low' | 'medium' | 'high' | 'xhigh';
-
-export interface ModelRef {
-  provider: string;
-  id: string;
-}
-
-export type BotModel = ModelRef | null;
-
-export interface ChatSessionSummary {
+export interface SessionSummary {
   id: string;
   name?: string;
   createdAt: string;
@@ -101,6 +106,8 @@ export interface ChatSessionSummary {
   thinking: ThinkingLevel | null;
   isActive: boolean;
 }
+
+export type ChatSessionSummary = SessionSummary;
 
 export interface SessionStats {
   tokens: {
@@ -118,11 +125,36 @@ export interface SessionStats {
   } | null;
 }
 
-export interface ChatSessionDetail {
-  session: ChatSessionSummary;
-  messages: unknown[];
+export type ToolCallStatus = 'pending' | 'running' | 'success' | 'error';
+
+export interface PiToolCall {
+  id: string;
+  name: string;
+  arguments: Record<string, unknown>;
+  result?: string;
+  liveOutput?: string;
+  status: ToolCallStatus;
+  isError?: boolean;
+}
+
+export interface PiMessage {
+  id: string;
+  role: 'user' | 'assistant' | 'system';
+  content: string;
+  thinking?: string;
+  toolCalls?: PiToolCall[];
+  timestamp?: string;
+  error?: string;
+  streaming?: boolean;
+}
+
+export interface SessionDetail {
+  session: SessionSummary;
+  messages: PiMessage[];
   stats: SessionStats;
 }
+
+export type ChatSessionDetail = SessionDetail;
 
 export interface CreateSessionRequest {
   name?: string;
@@ -144,11 +176,6 @@ export interface ChatRequest {
   sessionId?: string;
 }
 
-export interface ChatAccepted {
-  sessionId: string;
-  runId: string;
-}
-
 export interface AbortRequest {
   sessionId?: string;
 }
@@ -166,19 +193,63 @@ export type BotSseEventType =
   | 'bot.stats';
 
 export interface BotSseEvent {
-  type: BotSseEventType;
-  botId: string;
-  sessionId: string;
-  runId: string;
+  type: BotSseEventType | string;
+  botId?: string;
+  sessionId?: string;
+  runId?: string;
   role?: string;
-  delta?: string;
-  text?: string;
   toolCallId?: string;
   toolName?: string;
   args?: unknown;
   result?: unknown;
   isError?: boolean;
+  delta?: string;
+  text?: string;
+  content?: string;
   error?: string;
+  message?: string;
   stats?: SessionStats;
+  messageId?: string;
   [key: string]: unknown;
+}
+
+export interface ChatAccepted {
+  sessionId: string;
+  runId: string;
+}
+
+export interface GuiSettings {
+  language: 'zh-CN' | 'en-US';
+  theme: 'light' | 'dark' | 'auto';
+  memoryBackend: 'respire' | 'markdown' | 'off';
+  memoryReview: boolean;
+  maxSessions: number;
+  idleTimeoutMinutes: number;
+  defaultModel: SettingsModelRef | null;
+  defaultThinking: ThinkingLevelSetting | null;
+  loadUserExtensions: boolean;
+  loadContextFiles: boolean;
+  timezone: string;
+  workdir: string;
+}
+
+export type ContractSettings = GuiSettings;
+
+export function emptySessionStats(): SessionStats {
+  return {
+    tokens: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, total: 0 },
+    cost: 0,
+    contextUsage: null,
+  };
+}
+
+export function modelKey(ref: ModelRef | null | undefined): string {
+  if (!ref) return '';
+  return `${ref.provider}/${ref.id}`;
+}
+
+export function sameModel(a: ModelRef | null | undefined, b: ModelRef | null | undefined): boolean {
+  if (!a && !b) return true;
+  if (!a || !b) return false;
+  return a.provider === b.provider && a.id === b.id;
 }

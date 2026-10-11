@@ -9,6 +9,8 @@ function safeTotal(stats: UsageStats | null) {
   return {
     inputTokens: stats?.total?.inputTokens ?? 0,
     outputTokens: stats?.total?.outputTokens ?? 0,
+    cacheReadTokens: stats?.total?.cacheReadTokens ?? 0,
+    cacheWriteTokens: stats?.total?.cacheWriteTokens ?? 0,
     cost: stats?.total?.cost ?? 0,
   };
 }
@@ -81,7 +83,7 @@ export const UsageView: React.FC = () => {
                 <h2 className="text-lg font-medium text-gray-900 dark:text-white mb-4">
                   {t('usage.total')}
                 </h2>
-                <div className="grid grid-cols-3 gap-4">
+                <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
                   <div>
                     <div className="text-sm text-gray-500 dark:text-gray-400">{t('usage.inputTokens')}</div>
                     <div className="text-2xl font-bold text-gray-900 dark:text-white">
@@ -95,9 +97,21 @@ export const UsageView: React.FC = () => {
                     </div>
                   </div>
                   <div>
+                    <div className="text-sm text-gray-500 dark:text-gray-400">{t('usage.cacheRead')}</div>
+                    <div data-testid="usage-cache-read" className="text-2xl font-bold text-gray-900 dark:text-white">
+                      {formatNumber(total.cacheReadTokens)}
+                    </div>
+                  </div>
+                  <div>
+                    <div className="text-sm text-gray-500 dark:text-gray-400">{t('usage.cacheWrite')}</div>
+                    <div data-testid="usage-cache-write" className="text-2xl font-bold text-gray-900 dark:text-white">
+                      {formatNumber(total.cacheWriteTokens)}
+                    </div>
+                  </div>
+                  <div>
                     <div className="text-sm text-gray-500 dark:text-gray-400">{t('usage.cost')}</div>
-                    <div className="text-2xl font-bold text-blue-600">
-                      ${total.cost.toFixed(2)}
+                    <div data-testid="usage-cost" className="text-2xl font-bold text-blue-600">
+                      ${total.cost.toFixed(4)}
                     </div>
                   </div>
                 </div>
@@ -114,7 +128,8 @@ export const UsageView: React.FC = () => {
                       <div className="flex gap-4 text-sm">
                         <span className="text-gray-600 dark:text-gray-400">{formatNumber(data.inputTokens)} in</span>
                         <span className="text-gray-600 dark:text-gray-400">{formatNumber(data.outputTokens)} out</span>
-                        <span className="text-blue-600 font-medium">${(data.cost ?? 0).toFixed(2)}</span>
+                        <span className="text-gray-600 dark:text-gray-400">{formatNumber(data.cacheReadTokens ?? 0)} cache</span>
+                        <span className="text-blue-600 font-medium">${(data.cost ?? 0).toFixed(4)}</span>
                       </div>
                     </div>
                   ))}

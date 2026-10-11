@@ -35,6 +35,10 @@ function attachGuards(page: Page) {
     const url = response.url();
     if (!url.includes('/api')) return;
     if (response.status() >= 400) {
+      // A/C 后端未合并前，新合同路由可能 404；前端必须降级而不是无限加载
+      const pendingContract = /\/api\/(models|providers)(\/|$)/.test(url)
+        || /\/api\/bots\/[^/]+\/sessions/.test(url);
+      if (response.status() === 404 && pendingContract) return;
       apiFailures.push(`${response.status()} ${response.request().method()} ${url}`);
     }
   });
@@ -121,6 +125,10 @@ test.describe('PI-Bot Web GUI E2E (real daemon)', () => {
     await expect(page).toHaveURL(/\/bots/);
     await expect(page.getByText('Chief').first()).toBeVisible();
     await expect(page.getByTestId('chat-input')).toBeVisible();
+    await expect(page.getByTestId('session-sidebar')).toBeVisible();
+    await expect(page.getByTestId('model-picker')).toBeVisible();
+    await expect(page.getByTestId('thinking-selector')).toBeVisible();
+    await expect(page.getByTestId('session-info')).toBeVisible();
     await guards.assertClean('root/bots');
 
     await page.goto(`${BASE_URL}/bots`);
@@ -181,6 +189,15 @@ test.describe('PI-Bot Web GUI E2E (real daemon)', () => {
     await waitReady(page, 'settings');
     await expect(page.getByText('设置').first()).toBeVisible();
     await expect(page.getByRole('button', { name: '保存' })).toBeVisible();
+    await expect(page.getByTestId('settings-tab-general')).toBeVisible();
+    await page.getByTestId('settings-tab-models').click();
+    await expect(page.getByTestId('settings-default-model')).toBeVisible();
+    await page.getByTestId('settings-tab-sessions').click();
+    await expect(page.getByText('空闲超时', { exact: false })).toBeVisible();
+    await page.getByTestId('settings-tab-memory').click();
+    await expect(page.getByText('记忆后端')).toBeVisible();
+    await page.getByTestId('settings-tab-providers').click();
+    await waitReady(page, 'settings-providers');
     await guards.assertClean('settings');
   });
 });

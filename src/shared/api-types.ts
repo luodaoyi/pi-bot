@@ -14,6 +14,8 @@ import type {
 } from './bot-types.js';
 import type { RecallResult, RememberResult } from './memory-types.js';
 
+export type { ThinkingLevel, ModelRef } from './bot-types.js';
+
 // Re-export request types for convenience
 export type {
   BotCreateRequest,
@@ -255,6 +257,9 @@ export interface ModelInfo {
   supportsThinking?: boolean;
 }
 
+/** GUI 模型目录条目，与 ModelInfo 同形 */
+export type PiModel = ModelInfo;
+
 export interface ListModelsResponse {
   models: ModelInfo[];
   defaultModel: { provider: string; id: string } | null;
@@ -283,6 +288,7 @@ export interface PutProviderApiKeyResponse {
 
 export interface DeleteProviderAuthResponse {
   configured: false;
+  existed: boolean;
 }
 
 export interface OAuthStartResponse {
@@ -326,11 +332,15 @@ export interface ChatSessionSummary {
   isActive: boolean;
 }
 
+export type SessionSummary = ChatSessionSummary;
+
 export interface ChatSessionDetail {
   session: ChatSessionSummary;
   messages: unknown[];
   stats: SessionStats;
 }
+
+export type SessionDetail = ChatSessionDetail;
 
 export interface CreateSessionRequest {
   name?: string;

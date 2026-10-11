@@ -135,7 +135,62 @@
     "memoryBackendMarkdown": "Markdown",
     "memoryBackendOff": "关闭",
     "memoryReview": "自动复审",
-    "maxSessions": "最大会话数"
+    "maxSessions": "最大会话数",
+    "tabGeneral": "常规",
+    "tabModels": "模型",
+    "tabProviders": "提供商/登录",
+    "tabSessions": "会话",
+    "tabMemory": "记忆",
+    "timezone": "时区",
+    "workdir": "工作目录",
+    "defaultModel": "默认模型",
+    "defaultThinking": "默认思考等级",
+    "idleTimeout": "空闲超时（分钟）",
+    "loadUserExtensions": "加载用户扩展",
+    "loadContextFiles": "加载上下文文件（AGENTS.md）",
+    "providersEmpty": "暂无提供商",
+    "providersUnavailable": "提供商接口尚未就绪（等待后端 C）",
+    "configured": "已配置（{{source}}）",
+    "notConfigured": "未配置",
+    "deleteKey": "删除密钥",
+    "apiKeyPlaceholder": "输入 API Key（不会明文回显）",
+    "oauth": "OAuth 登录"
+  },
+  "session": {
+    "list": "会话",
+    "new": "新会话",
+    "empty": "暂无会话",
+    "unsupported": "会话列表接口尚未就绪，当前显示最近历史。",
+    "rename": "重命名",
+    "fork": "分叉",
+    "messages": "{{count}} 条消息",
+    "model": "模型",
+    "thinking": "思考",
+    "context": "上下文占用"
+  },
+  "model": {
+    "filter": "搜索模型",
+    "followDefault": "跟随 pi 默认",
+    "noAuth": "未登录",
+    "noAuthHint": "提供商 {{provider}} 未登录，请到 设置 → 提供商/登录",
+    "thinkingFollow": "跟随默认",
+    "thinking": {
+      "off": "关闭",
+      "minimal": "最低",
+      "low": "低",
+      "medium": "中",
+      "high": "高",
+      "xhigh": "极高"
+    }
+  },
+  "chat": {
+    "thinking": "思考过程",
+    "abort": "停止",
+    "toolArgs": "参数",
+    "toolLive": "实时输出",
+    "toolResult": "结果",
+    "toolError": "错误",
+    "toolRunning": "执行中…"
   },
   "common": {
     "save": "保存",

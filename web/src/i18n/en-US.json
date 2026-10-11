@@ -135,7 +135,62 @@
     "memoryBackendMarkdown": "Markdown",
     "memoryBackendOff": "Off",
     "memoryReview": "Auto Review",
-    "maxSessions": "Max Sessions"
+    "maxSessions": "Max Sessions",
+    "tabGeneral": "General",
+    "tabModels": "Models",
+    "tabProviders": "Providers / Login",
+    "tabSessions": "Sessions",
+    "tabMemory": "Memory",
+    "timezone": "Timezone",
+    "workdir": "Working directory",
+    "defaultModel": "Default model",
+    "defaultThinking": "Default thinking",
+    "idleTimeout": "Idle timeout (minutes)",
+    "loadUserExtensions": "Load user extensions",
+    "loadContextFiles": "Load context files (AGENTS.md)",
+    "providersEmpty": "No providers",
+    "providersUnavailable": "Provider API is not ready yet",
+    "configured": "Configured ({{source}})",
+    "notConfigured": "Not configured",
+    "deleteKey": "Delete key",
+    "apiKeyPlaceholder": "Enter API key (masked)",
+    "oauth": "OAuth login"
+  },
+  "session": {
+    "list": "Sessions",
+    "new": "New session",
+    "empty": "No sessions",
+    "unsupported": "Session API is not ready; showing recent history.",
+    "rename": "Rename",
+    "fork": "Fork",
+    "messages": "{{count}} messages",
+    "model": "Model",
+    "thinking": "Thinking",
+    "context": "Context usage"
+  },
+  "model": {
+    "filter": "Filter models",
+    "followDefault": "Follow pi default",
+    "noAuth": "no auth",
+    "noAuthHint": "Provider {{provider}} has no auth. Open Settings → Providers to sign in.",
+    "thinkingFollow": "Follow default",
+    "thinking": {
+      "off": "Off",
+      "minimal": "Minimal",
+      "low": "Low",
+      "medium": "Medium",
+      "high": "High",
+      "xhigh": "Extra high"
+    }
+  },
+  "chat": {
+    "thinking": "Thinking",
+    "abort": "Stop",
+    "toolArgs": "Arguments",
+    "toolLive": "Live output",
+    "toolResult": "Result",
+    "toolError": "Error",
+    "toolRunning": "Running…"
   },
   "common": {
     "save": "Save",

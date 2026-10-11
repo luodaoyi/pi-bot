@@ -45,7 +45,7 @@ describe('MockApiClient', () => {
         instructions: 'Test instructions',
         model: {
           provider: 'deepseek',
-          modelId: 'deepseek-chat',
+          id: 'deepseek-chat',
         },
       });
       expect(newBot.name).toBe('Test Bot');
@@ -112,11 +112,43 @@ describe('MockApiClient', () => {
     });
   });
 
+  describe('Contract models/sessions', () => {
+    it('lists models grouped with auth flags', async () => {
+      const catalog = await client.getModels();
+      expect(catalog.models.length).toBeGreaterThan(0);
+      expect(catalog.models.every((m) => typeof m.hasAuth === 'boolean')).toBe(true);
+      expect(catalog.defaultModel).toEqual({ provider: 'deepseek', id: 'deepseek-v4-pro' });
+    });
+
+    it('manages sessions per bot', async () => {
+      const created = await client.createSession('bot-chief', '测试会话');
+      expect(created.name).toBe('测试会话');
+      expect(created.isActive).toBe(true);
+      const list = await client.listSessions('bot-chief');
+      expect(list[0].id).toBe(created.id);
+      const renamed = await client.updateSession('bot-chief', created.id, { name: '改名', thinking: 'high' });
+      expect(renamed.name).toBe('改名');
+      expect(renamed.thinking).toBe('high');
+      const forked = await client.forkSession('bot-chief', created.id, 'head');
+      expect(forked.id).not.toBe(created.id);
+      await client.deleteSession('bot-chief', forked.id);
+    });
+
+    it('saves provider api keys', async () => {
+      const result = await client.setProviderApiKey('anthropic', 'sk-test');
+      expect(result.configured).toBe(true);
+      const providers = await client.getProviders();
+      expect(providers.find((p) => p.id === 'anthropic')?.configured).toBe(true);
+    });
+  });
+
   describe('Settings', () => {
     it('should get settings', async () => {
       const settings = await client.getSettings();
       expect(settings.language).toBeDefined();
       expect(settings.theme).toBeDefined();
+      expect(settings.idleTimeoutMinutes).toBe(10);
+      expect(settings.loadUserExtensions).toBe(false);
     });
 
     it('should update settings', async () => {
