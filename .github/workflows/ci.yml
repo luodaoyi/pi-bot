@@ -83,8 +83,9 @@ jobs:
       - name: E2E Smoke Test
         shell: bash
         run: |
-          # Get version from package.json
-          VERSION=$(node -p "require('${{ github.workspace }}/package.json').version")
+          # Get version from package.json (use relative path from workspace)
+          cd "${{ github.workspace }}"
+          VERSION=$(node -p "require('./package.json').version")
           echo "Testing version: $VERSION"
           
           # Install tarball
