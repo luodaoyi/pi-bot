@@ -1,0 +1,48 @@
+{
+  "name": "pi-bot",
+  "version": "0.1.0",
+  "description": "Multi-bot team daemon for pi coding agent",
+  "keywords": [
+    "pi",
+    "bot",
+    "agent",
+    "daemon"
+  ],
+  "type": "module",
+  "bin": {
+    "pi-bot": "./dist/cli.js"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc -b",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest",
+    "clean": "rm -rf dist *.tsbuildinfo"
+  },
+  "dependencies": {
+    "@pi-bot/protocol": "workspace:*",
+    "@pi-bot/respire-client": "workspace:*",
+    "commander": "^12.0.0",
+    "cron-parser": "^5.10.2",
+    "pi-respire": "workspace:*"
+  },
+  "peerDependencies": {
+    "@earendil-works/pi-coding-agent": ">=1.1.0"
+  },
+  "devDependencies": {
+    "@earendil-works/pi-coding-agent": "^1.1.0",
+    "@types/better-sqlite3": "^9.6.0",
+    "@types/node": "^22.0.0",
+    "better-sqlite3": "^13.0.3",
+    "typescript": "^5.6.0",
+    "vitest": "^2.1.0"
+  }
+}

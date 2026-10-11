@@ -1,0 +1,34 @@
+{
+  "name": "pi-bot-monorepo",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Pi Package for multi-bot teams with Respire memory",
+  "keywords": ["pi-package", "bot", "agent", "respire", "memory"],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/luodaoyi/pi-bot.git"
+  },
+  "license": "Apache-2.0",
+  "author": "luodaoyi",
+  "type": "module",
+  "scripts": {
+    "build": "pnpm -r build",
+    "test": "vitest",
+    "test:ci": "vitest run",
+    "lint": "biome check .",
+    "lint:fix": "biome check --write .",
+    "typecheck": "pnpm -r typecheck",
+    "clean": "pnpm -r clean && rm -rf node_modules"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "^1.9.4",
+    "@types/node": "^22.0.0",
+    "typescript": "^5.6.0",
+    "vitest": "^2.1.0"
+  },
+  "engines": {
+    "node": ">=22.19.0",
+    "pnpm": ">=9.0.0"
+  },
+  "packageManager": "pnpm@9.12.0"
+}
