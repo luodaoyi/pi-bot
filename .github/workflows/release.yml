@@ -75,7 +75,7 @@ jobs:
       - name: Upgrade npm for trusted publishing
         run: |
           echo "Current npm version: $(npm --version)"
-          npm install -g npm@latest
+          npm install -g npm@11
           echo "Upgraded npm version: $(npm --version)"
       
       - name: Pack tarball
