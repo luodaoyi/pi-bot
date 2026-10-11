@@ -1,0 +1,26 @@
+{
+  "name": "@pi-bot/shared",
+  "version": "0.1.0",
+  "description": "Shared TypeScript types for pi-bot",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc -b",
+    "dev": "tsc -b --watch",
+    "clean": "rm -rf dist *.tsbuildinfo",
+    "typecheck": "tsc --noEmit"
+  },
+  "keywords": ["pi-bot", "types"],
+  "author": "pi-bot contributors",
+  "license": "Apache-2.0",
+  "devDependencies": {
+    "typescript": "^5.7.2"
+  }
+}

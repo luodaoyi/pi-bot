@@ -1,0 +1,51 @@
+{
+  "name": "pi-bot",
+  "version": "0.1.0",
+  "description": "Multi-bot daemon with pi SDK and Respire memory",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "bin": {
+    "pi-bot": "./dist/cli.js"
+  },
+  "pi": {
+    "extensions": ["./dist/extension/index.js"]
+  },
+  "keywords": [
+    "pi-bot",
+    "pi-package",
+    "multi-agent",
+    "respire"
+  ],
+  "scripts": {
+    "build": "tsc -b",
+    "dev": "tsx watch src/cli.ts serve --dev",
+    "start": "node dist/cli.js serve",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "clean": "rm -rf dist *.tsbuildinfo",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint src --ext .ts",
+    "lint:fix": "eslint src --ext .ts --fix"
+  },
+  "author": "pi-bot contributors",
+  "license": "Apache-2.0",
+  "dependencies": {
+    "@pi-bot/respire-client": "workspace:*",
+    "@pi-bot/shared": "workspace:*",
+    "hono": "^4.6.14",
+    "zod": "^3.24.1"
+  },
+  "peerDependencies": {
+    "@earendil-works/pi-coding-agent": "*",
+    "@earendil-works/pi-ai": "*"
+  },
+  "devDependencies": {
+    "@earendil-works/pi-coding-agent": "^1.1.0",
+    "@earendil-works/pi-ai": "^1.1.0",
+    "@types/node": "^22.10.2",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.2",
+    "vitest": "^2.1.8"
+  }
+}

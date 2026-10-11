@@ -1,0 +1,41 @@
+pi-bot
+Copyright 2026 pi-bot contributors
+
+This product includes software developed as pi-bot, an open-source
+port of DeepSeek-Bot functionality to the pi coding agent ecosystem,
+with Respire memory system integration.
+
+## Acknowledgments
+
+This project draws architectural inspiration and design patterns from:
+
+- **DeepSeek-Bot** (https://github.com/FeiZhuLulu/DeepSeek-Bot)
+  Copyright FeiZhuLulu and contributors
+  Licensed under the Apache License, Version 2.0
+  
+  We acknowledge the architectural patterns for multi-bot systems,
+  memory management, and group chat orchestration from DeepSeek-Bot.
+  No source code from DeepSeek-Bot has been directly copied; this
+  project is an independent implementation using different APIs and
+  runtime environments.
+
+- **pi coding agent** (https://github.com/earendil-works/pi)
+  Copyright Mario Zechner / Earendil Works
+  Licensed under the MIT License
+  
+  pi-bot is built as an extension for the pi coding agent ecosystem.
+
+- **Respire CLI** (https://github.com/risense-ai/respire-cli)
+  Copyright Respire contributors
+  Licensed under the Respire Noncommercial License 1.0
+  
+  pi-bot integrates with Respire as an optional memory backend via
+  its public HTTP RPC interface. Respire is not bundled with pi-bot;
+  users install it separately.
+
+## Third-Party Dependencies
+
+This project uses various open-source packages listed in package.json
+files throughout the monorepo. Each dependency retains its original
+license. See individual package.json files for complete dependency
+information.
