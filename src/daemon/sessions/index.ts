@@ -3,6 +3,7 @@
  */
 
 export { SessionPool } from './pool.js';
+export { getSharedAgentServices, resetSharedAgentServices, servicesForCwd } from './services.js';
 export type {
   SessionInfo,
   SessionPoolConfig,

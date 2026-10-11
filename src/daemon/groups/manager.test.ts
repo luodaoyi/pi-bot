@@ -2,7 +2,7 @@
  * Group manager tests
  */
 
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { GroupManager } from '../groups/manager.js';
 import type { Store } from '../store/index.js';
 import { SessionPool } from '../sessions/pool.js';
@@ -54,7 +54,26 @@ describe('GroupManager', () => {
       maxSessions: 10,
       idleTimeoutMs: 5000,
       sessionDir: '/tmp/test',
+      workspaceDir: '/tmp/test-workspace',
+      services: {
+        cwd: '/tmp/test-workspace',
+        agentDir: '/tmp/pi-agent',
+        modelRuntime: {
+          getModel: () => undefined,
+          hasConfiguredAuth: () => false,
+          getAvailable: async () => [],
+        },
+        settingsManager: {
+          getDefaultProvider: () => undefined,
+          getDefaultModel: () => undefined,
+        },
+        resourceLoader: {},
+        diagnostics: [],
+      } as never,
     });
+    vi.spyOn(sessionPool, 'sendMessage').mockImplementation(
+      () => new Promise((resolve) => setTimeout(resolve, 20))
+    );
     groupManager = new GroupManager(store as unknown as Store, sessionPool);
 
     // Add test bots
@@ -64,7 +83,7 @@ describe('GroupManager', () => {
         name: `Bot ${i}`,
         role: 'assistant',
         instructions: `Test bot ${i}`,
-        model: { provider: 'deepseek', modelId: 'deepseek-chat' },
+        model: { provider: 'openai', id: 'gpt-4o' },
         isMain: i === 1,
         created: new Date().toISOString(),
         segments: [],
@@ -163,13 +182,25 @@ describe('GroupManager', () => {
       members: ['bot-1', 'bot-2'],
     });
 
-    // Start first round (won't complete due to mock)
+    vi.spyOn(sessionPool, 'sendMessage').mockImplementation(async (botId: string) => {
+      await new Promise((resolve) => setTimeout(resolve, 80));
+      setTimeout(() => {
+        sessionPool.emit('message_end', {
+          type: 'message_end',
+          botId,
+          messageId: 'm',
+          text: '[PASS]',
+        });
+      }, 0);
+    });
+
     const firstRound = groupManager.postToGroup({
       groupId: group.id,
       message: 'Hello',
     });
 
-    // Try to start second round immediately
+    await new Promise((resolve) => setTimeout(resolve, 10));
+
     await expect(
       groupManager.postToGroup({
         groupId: group.id,
@@ -177,7 +208,6 @@ describe('GroupManager', () => {
       })
     ).rejects.toThrow('already running a round');
 
-    // Clean up
     await firstRound.catch(() => {});
   });
 });

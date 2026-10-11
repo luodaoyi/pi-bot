@@ -15,6 +15,7 @@ import type {
   BotUpdateRequest,
   SSEEvent,
 } from '#shared/index.js';
+import { normalizeBotModel, normalizeThinking } from '../models/resolve.js';
 
 interface State {
   version: number;
@@ -30,11 +31,9 @@ interface State {
 export class Store extends EventEmitter {
   private state: State;
   private statePath: string;
-  private config: Config;
 
   constructor(config: Config) {
     super();
-    this.config = config;
     this.statePath = join(expandHome(config.host.home), 'state.json');
     this.state = {
       version: 1,
@@ -58,6 +57,8 @@ export class Store extends EventEmitter {
       }
       // State file doesn't exist, will be created on first save
     }
+
+    await this.migrateBots();
 
     // 清理上次异常退出留下的临时文件
     try {
@@ -83,10 +84,8 @@ export class Store extends EventEmitter {
         name: 'Chief',
         role: 'Main assistant',
         instructions: 'You are the main bot. Help manage other bots and coordinate tasks.',
-        model: {
-          provider: this.config.pi.defaultModel ? 'custom' : 'deepseek',
-          modelId: this.config.pi.defaultModel || 'deepseek-chat',
-        },
+        model: null,
+        thinking: null,
         isMain: true,
       });
 
@@ -114,11 +113,13 @@ export class Store extends EventEmitter {
       name: request.name,
       role: request.role,
       instructions: request.instructions,
-      model: request.model,
+      model: normalizeBotModel(request.model),
+      thinking: normalizeThinking(request.thinking),
       look: request.look,
       isMain: request.isMain ?? false,
       created: new Date().toISOString(),
       segments: [],
+      activeSessionId: null,
     };
 
     this.state.bots[id] = bot;
@@ -143,8 +144,10 @@ export class Store extends EventEmitter {
     if (request.name !== undefined) bot.name = request.name;
     if (request.role !== undefined) bot.role = request.role;
     if (request.instructions !== undefined) bot.instructions = request.instructions;
-    if (request.model !== undefined) bot.model = request.model;
+    if (request.model !== undefined) bot.model = normalizeBotModel(request.model);
+    if (request.thinking !== undefined) bot.thinking = normalizeThinking(request.thinking);
     if (request.look !== undefined) bot.look = request.look;
+    if (request.activeSessionId !== undefined) bot.activeSessionId = request.activeSessionId;
 
     await this.save();
 
@@ -173,12 +176,41 @@ export class Store extends EventEmitter {
   }
 
   // ============================================================================
-  // Sessions (placeholder)
+  // Sessions
   // ============================================================================
 
   async getActiveSessionCount(): Promise<number> {
-    // TODO: Track active pi SDK sessions
-    return 0;
+    return Object.values(this.state.bots).filter((bot) => bot.activeSessionId).length;
+  }
+
+  /**
+   * Migrate persisted bots: string / {provider,modelId} / custom → {provider,id}|null.
+   * Legacy Chief default `deepseek/deepseek-chat` becomes null (follow pi).
+   */
+  private async migrateBots(): Promise<void> {
+    let changed = false;
+    for (const bot of Object.values(this.state.bots)) {
+      const nextModel = normalizeBotModel((bot as { model?: unknown }).model);
+      if (JSON.stringify(bot.model) !== JSON.stringify(nextModel)) {
+        bot.model = nextModel;
+        changed = true;
+      }
+      if (bot.thinking === undefined) {
+        bot.thinking = null;
+        changed = true;
+      }
+      if (bot.activeSessionId === undefined) {
+        bot.activeSessionId = null;
+        changed = true;
+      }
+    }
+    if (this.state.version < 2) {
+      this.state.version = 2;
+      changed = true;
+    }
+    if (changed) {
+      await this.save();
+    }
   }
 
   // ============================================================================

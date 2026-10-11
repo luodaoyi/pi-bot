@@ -47,10 +47,35 @@ describe('GUI ↔ daemon API contract', () => {
     const secrets = await createSecretsManager({ storePath: join(tmp, 'secrets.json') });
     const settingsStore = await createSettingsStore(tmp);
 
+    const fakeSession = {
+      id: 'ses-contract',
+      name: 'Contract',
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      messageCount: 0,
+      model: null,
+      thinking: null,
+      isActive: true,
+    };
     const fakePool = {
-      sendMessage: async () => {
-        throw new Error('no model in contract test');
-      },
+      sendMessage: async () => {},
+      startChat: async () => ({ sessionId: fakeSession.id, runId: 'run-1' }),
+      abort: async () => true,
+      listBotSessions: async () => [fakeSession],
+      createBotSession: async () => fakeSession,
+      getBotSession: async () => ({
+        session: fakeSession,
+        messages: [],
+        stats: {
+          tokens: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, total: 0 },
+          cost: 0,
+          contextUsage: null,
+        },
+      }),
+      patchBotSession: async () => fakeSession,
+      activateBotSession: async () => fakeSession,
+      forkBotSession: async () => ({ ...fakeSession, id: 'ses-fork' }),
+      deleteBotSession: async () => {},
       on: () => fakePool,
       off: () => fakePool,
     };
@@ -132,6 +157,11 @@ describe('GUI ↔ daemon API contract', () => {
       { method: 'GET', path: '/api/bots' },
       { method: 'GET', path: `/api/bots/${chiefId}` },
       { method: 'GET', path: `/api/bots/${chiefId}/history` },
+      { method: 'GET', path: `/api/bots/${chiefId}/sessions` },
+      { method: 'POST', path: `/api/bots/${chiefId}/sessions`, body: { name: 'New' } },
+      { method: 'GET', path: `/api/bots/${chiefId}/sessions/ses-contract` },
+      { method: 'POST', path: `/api/bots/${chiefId}/chat`, body: { message: 'hi' }, status: [202] },
+      { method: 'POST', path: `/api/bots/${chiefId}/abort`, body: {} },
       { method: 'GET', path: '/api/groups' },
       { method: 'GET', path: '/api/memory/status' },
       { method: 'GET', path: '/api/memory/search?limit=50' },
@@ -149,8 +179,15 @@ describe('GUI ↔ daemon API contract', () => {
     ];
 
     for (const sample of samples) {
-      const res = await app.request(sample.path, { method: sample.method });
+      const res = await app.request(sample.path, {
+        method: sample.method,
+        headers: sample.body ? { 'Content-Type': 'application/json' } : undefined,
+        body: sample.body ? JSON.stringify(sample.body) : undefined,
+      });
       expect(res.status, `${sample.method} ${sample.path} should not 404`).not.toBe(404);
+      if (sample.status) {
+        expect(sample.status, `${sample.method} ${sample.path} status`).toContain(res.status);
+      }
 
       const json = (await res.json()) as Record<string, unknown>;
       const pathOnly = sample.path.split('?')[0]!;

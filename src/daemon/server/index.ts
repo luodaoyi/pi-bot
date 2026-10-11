@@ -66,12 +66,21 @@ export async function serve(options: { configPath?: string; dev: boolean; port?:
   const store = await createStore(config);
   const settingsStore = await createSettingsStore(homeDir);
 
-  // Initialize session pool
+  // Shared pi SDK services (one ModelRuntime / resourceLoader for all bots)
+  const workspaceDir = expandHome(config.host.workspace);
   const sessionPool = new SessionPool({
     maxSessions: config.host.maxSessions,
     idleTimeoutMs: config.host.idleSeconds * 1000,
     sessionDir: join(homeDir, 'sessions'),
+    workspaceDir,
+    loadUserExtensions: config.pi.loadUserExtensions,
+    loadContextFiles: config.pi.loadContextFiles,
   });
+  try {
+    await sessionPool.getServices();
+  } catch (error) {
+    console.error('Shared SDK services will be created on first session:', error);
+  }
 
   // Initialize team coordinator
   const teamCoordinator = new TeamCoordinator(store, sessionPool);
@@ -107,25 +116,33 @@ export async function serve(options: { configPath?: string; dev: boolean; port?:
     dbPath: join(homeDir, 'usage.sqlite'),
   });
 
-  // Record usage from session pool events
-  sessionPool.on('message_end', (event) => {
-    if (event.type === 'message_end') {
-      // TODO: Get actual token counts and model info from event
-      usage.record(
-        event.botId, // botId
-        'session-' + event.botId, // sessionId - TODO: get actual session ID
-        'unknown', // provider - TODO: get from bot config
-        'unknown', // model - TODO: get from bot config
-        'turn', // kind
-        0, // inputTokens - TODO: get from event
-        0, // cacheReadTokens
-        0, // cacheWriteTokens
-        0, // outputTokens - TODO: get from event
-        0  // cost
-      ).catch((err) => {
+  // Record usage from SDK session stats so /api/usage has real data
+  sessionPool.on('usage', (payload: {
+    botId: string;
+    sessionId: string;
+    stats: { tokens: { input: number; output: number; cacheRead: number; cacheWrite: number }; cost: number };
+    model?: { provider?: string; id?: string };
+  }) => {
+    const tokens = payload.stats.tokens;
+    if (!tokens.input && !tokens.output && !tokens.cacheRead && !tokens.cacheWrite) {
+      return;
+    }
+    usage
+      .record(
+        payload.botId,
+        payload.sessionId,
+        payload.model?.provider ?? 'unknown',
+        payload.model?.id ?? 'unknown',
+        'turn',
+        tokens.input,
+        tokens.cacheRead,
+        tokens.cacheWrite,
+        tokens.output,
+        payload.stats.cost
+      )
+      .catch((err) => {
         console.error('Failed to record usage:', err);
       });
-    }
   });
 
   // Create Hono app
@@ -166,8 +183,8 @@ export async function serve(options: { configPath?: string; dev: boolean; port?:
     respirePort: config.respire.port,
   });
 
-  // SSE endpoint
-  setupSSE(app, store);
+  // SSE endpoint (store events + bot streaming)
+  setupSSE(app, store, sessionPool);
 
   // Serve static files (web UI) with absolute path support
   const __dirname = dirname(fileURLToPath(import.meta.url));

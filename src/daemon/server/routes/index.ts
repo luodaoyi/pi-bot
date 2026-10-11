@@ -14,6 +14,7 @@ import type { SecretsManager } from '../../secrets/index.js';
 import type { UsageTracker } from '../../usage/index.js';
 import { setupBotRoutes } from './bots.js';
 import { setupBotChatRoutes } from './bots-chat.js';
+import { setupSessionRoutes } from './sessions.js';
 import { setupTeamRoutes } from './team.js';
 import { setupGroupRoutes } from './groups.js';
 import { setupSystemRoutes } from './system.js';
@@ -52,6 +53,7 @@ export function setupRoutes(
   // Session and chat routes
   if (context?.sessionPool) {
     setupBotChatRoutes(app, store, context.sessionPool, config);
+    setupSessionRoutes(app, store, context.sessionPool, config);
   }
 
   // Team coordination routes

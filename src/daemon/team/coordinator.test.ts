@@ -11,23 +11,35 @@ import { EventEmitter } from 'node:events';
 
 // Mock Pi SDK
 vi.mock('@earendil-works/pi-coding-agent', () => ({
-  createAgentSession: vi.fn(() => {
-    const emitter = new EventEmitter();
-    return {
-      session: Object.assign(emitter, {
-        prompt: vi.fn(),
-        subscribe: vi.fn((fn: any) => fn),
-        setSessionName: vi.fn(),
-        dispose: vi.fn(),
-      }) as any,
-      sessionManager: {} as any,
-    };
-  }),
+  createAgentSession: vi.fn(),
+  createAgentSessionServices: vi.fn(),
+  createAgentSessionFromServices: vi.fn(() => ({
+    session: {
+      prompt: vi.fn().mockResolvedValue(undefined),
+      subscribe: vi.fn(() => () => {}),
+      setSessionName: vi.fn(),
+      dispose: vi.fn(),
+      abort: vi.fn(),
+      getSessionStats: vi.fn(() => ({ tokens: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, total: 0 }, cost: 0 })),
+      getContextUsage: vi.fn(),
+      sessionManager: {
+        buildSessionContext: () => ({ messages: [], model: null, thinkingLevel: 'off' }),
+        getEntries: () => [],
+      },
+    },
+  })),
+  getAgentDir: () => '/tmp/pi-agent',
   SessionManager: {
-    create: vi.fn(async (sessionPath: string) => ({
-      sessionPath,
-      sessionId: 'test-session-' + Math.random(),
+    create: vi.fn((_cwd: string, _dir?: string, options?: { id?: string }) => ({
+      getSessionId: () => options?.id ?? 'test-session',
+      getSessionFile: () => undefined,
+      buildSessionContext: () => ({ messages: [], model: null, thinkingLevel: 'off' }),
+      getEntries: () => [],
     })),
+    open: vi.fn(),
+    list: vi.fn().mockResolvedValue([]),
+    findById: vi.fn().mockReturnValue(undefined),
+    forkFrom: vi.fn(),
   },
 }));
 
@@ -76,6 +88,22 @@ describe('TeamCoordinator', () => {
       maxSessions: 10,
       idleTimeoutMs: 5000,
       sessionDir: '/tmp/test',
+      workspaceDir: '/tmp/test-workspace',
+      services: {
+        cwd: '/tmp/test-workspace',
+        agentDir: '/tmp/pi-agent',
+        modelRuntime: {
+          getModel: () => undefined,
+          hasConfiguredAuth: () => false,
+          getAvailable: async () => [],
+        },
+        settingsManager: {
+          getDefaultProvider: () => undefined,
+          getDefaultModel: () => undefined,
+        },
+        resourceLoader: {},
+        diagnostics: [],
+      } as never,
     });
     coordinator = new TeamCoordinator(store as unknown as Store, sessionPool);
 
@@ -85,7 +113,7 @@ describe('TeamCoordinator', () => {
       name: 'Bot 1',
       role: 'assistant',
       instructions: 'Test bot 1',
-      model: { provider: 'deepseek', modelId: 'deepseek-chat' },
+      model: { provider: 'openai', id: 'gpt-4o' },
       isMain: false,
       created: new Date().toISOString(),
       segments: [],
@@ -96,7 +124,7 @@ describe('TeamCoordinator', () => {
       name: 'Bot 2',
       role: 'assistant',
       instructions: 'Test bot 2',
-      model: { provider: 'deepseek', modelId: 'deepseek-chat' },
+      model: { provider: 'openai', id: 'gpt-4o' },
       isMain: false,
       created: new Date().toISOString(),
       segments: [],

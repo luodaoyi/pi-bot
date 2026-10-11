@@ -1,13 +1,12 @@
 /**
- * Bot chat routes: Send messages, stream responses
+ * Bot chat routes: 202 accepted + SSE stream, abort, history
  */
 
 import type { Hono } from 'hono';
-import { stream } from 'hono/streaming';
 import type { Config } from '../../config.js';
 import type { Store } from '../../store/index.js';
 import type { SessionPool } from '../../sessions/index.js';
-import type { SendMessageRequest } from '#shared/index.js';
+import type { ChatRequest } from '#shared/index.js';
 
 export function setupBotChatRoutes(
   app: Hono,
@@ -16,11 +15,11 @@ export function setupBotChatRoutes(
   _config: Config
 ) {
   /**
-   * Send message to a bot and get streaming response
+   * Start a chat turn. Returns 202 immediately; tokens stream via /api/events.
    */
   app.post('/api/bots/:id/chat', async (c) => {
     const botId = c.req.param('id');
-    const body = (await c.req.json()) as SendMessageRequest & { content?: string };
+    const body = (await c.req.json()) as ChatRequest;
     const message = body.message ?? body.content;
 
     const bot = await store.getBot(botId);
@@ -33,46 +32,8 @@ export function setupBotChatRoutes(
     }
 
     try {
-      // Send message to bot session
-      await sessionPool.sendMessage(botId, message, bot);
-
-      // Stream response
-      return stream(c, async (stream) => {
-        const handler = (event: {
-          type: string;
-          botId: string;
-          delta?: string;
-          text?: string;
-        }) => {
-          if (event.botId === botId) {
-            if (event.type === 'message_update' && event.delta) {
-              void stream.write(
-                `data: ${JSON.stringify({ type: 'delta', delta: event.delta })}\n\n`
-              );
-            } else if (event.type === 'message_end') {
-              void stream.write(
-                `data: ${JSON.stringify({ type: 'done', text: event.text })}\n\n`
-              );
-              void stream.close();
-              cleanup();
-            }
-          }
-        };
-
-        const cleanup = () => {
-          sessionPool.off('message_update', handler);
-          sessionPool.off('message_end', handler);
-        };
-
-        sessionPool.on('message_update', handler);
-        sessionPool.on('message_end', handler);
-
-        // Cleanup after 5 minutes
-        setTimeout(() => {
-          cleanup();
-          void stream.close();
-        }, 5 * 60 * 1000);
-      });
+      const accepted = await sessionPool.startChat(bot, message, body.sessionId);
+      return c.json({ success: true, data: accepted }, 202);
     } catch (error) {
       return c.json(
         {
@@ -84,11 +45,9 @@ export function setupBotChatRoutes(
     }
   });
 
-  /**
-   * Abort current bot response
-   */
   app.post('/api/bots/:id/abort', async (c) => {
     const botId = c.req.param('id');
+    const body = (await c.req.json().catch(() => ({}))) as { sessionId?: string };
 
     const bot = await store.getBot(botId);
     if (!bot) {
@@ -96,8 +55,8 @@ export function setupBotChatRoutes(
     }
 
     try {
-      // TODO: Implement abort in session pool
-      return c.json({ success: true, data: { aborted: true } });
+      const aborted = await sessionPool.abort(botId, body.sessionId);
+      return c.json({ success: true, data: { aborted } });
     } catch (error) {
       return c.json(
         {
@@ -109,9 +68,6 @@ export function setupBotChatRoutes(
     }
   });
 
-  /**
-   * Get chat history for a bot
-   */
   app.get('/api/bots/:id/history', async (c) => {
     const botId = c.req.param('id');
 
@@ -121,11 +77,17 @@ export function setupBotChatRoutes(
     }
 
     try {
-      // TODO: Read session history from disk
+      const sessions = await sessionPool.listBotSessions(bot);
+      const active = sessions.find((s) => s.isActive) ?? sessions[0];
+      if (!active) {
+        return c.json({ success: true, data: { messages: [] } });
+      }
+      const detail = await sessionPool.getBotSession(bot, active.id);
       return c.json({
         success: true,
         data: {
-          messages: [],
+          messages: detail.messages,
+          sessionId: active.id,
         },
       });
     } catch (error) {
