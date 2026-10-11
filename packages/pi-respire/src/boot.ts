@@ -13,7 +13,7 @@ export function setupBoot(
   onBootStateChange: (state: BootState) => void
 ) {
   // Load policy and configuration at session start
-  pi.on('session_start', async (event, ctx) => {
+  pi.on('session_start', async (_event, _ctx) => {
     try {
       // Check Respire health
       const health = await client.ensureUp();
@@ -64,7 +64,7 @@ export function setupBoot(
   });
 
   // Inject policy into system prompt before each agent start
-  pi.on('before_agent_start', (event, ctx) => {
+  pi.on('before_agent_start', (event, _ctx) => {
     const bootState = onBootStateChange as unknown as () => BootState | null;
     const state = (bootState as () => BootState | null)();
 

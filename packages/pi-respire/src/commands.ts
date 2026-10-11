@@ -18,10 +18,9 @@ export function registerCommands(
   ctx: CommandContext
 ) {
   // /respire status
-  pi.registerCommand({
-    name: 'respire',
+  pi.registerCommand('respire', {
     description: 'Show Respire memory system status',
-    async execute() {
+    async execute(_extCtx: unknown) {
       const boot = ctx.getBootState();
       const gate = ctx.getGateState();
 
@@ -47,10 +46,9 @@ export function registerCommands(
   });
 
   // /boot (manually trigger boot reload)
-  pi.registerCommand({
-    name: 'boot',
+  pi.registerCommand('boot', {
     description: 'Reload Respire policy (for debugging)',
-    async execute() {
+    async execute(_extCtx: unknown) {
       // This would require triggering session_start again
       // For now, just show current boot state
       const boot = ctx.getBootState();

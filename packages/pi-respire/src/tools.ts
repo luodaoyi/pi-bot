@@ -30,6 +30,7 @@ export function registerMemoryTools(
 
   pi.registerTool({
     name: 'respire_recall',
+    label: 'Respire Recall',
     description:
       'Semantic recall from Respire memory. ' +
       'This MUST be the first tool called in every turn. ' +
@@ -56,20 +57,21 @@ export function registerMemoryTools(
         })
       ),
     }),
-    promptGuidelines:
-      'Always call this tool first in every turn, before any other tool. ' +
-      'Use it to check existing knowledge before making decisions or storing new information.',
-    async execute(input) {
+    promptGuidelines: [
+      'Always call this tool first in every turn, before any other tool',
+      'Use it to check existing knowledge before making decisions or storing new information',
+    ],
+    async execute(_toolCallId, params, _signal, _onUpdate, _ctx) {
       try {
-        const result = await client.recall(input.query, {
-          limit: input.limit ?? 20,
-          titles: input.titles ?? true,
-          project: input.project ?? options.scope,
+        const result = await client.recall(params.query, {
+          limit: params.limit ?? 20,
+          titles: params.titles ?? true,
+          project: params.project ?? options.scope,
         });
 
         if (result.count === 0) {
           return {
-            content: [{ type: 'text' as const, text: `No memories found for query: "${input.query}"` }],
+            content: [{ type: 'text' as const, text: `No memories found for query: "${params.query}"` }],
             details: { result },
           };
         }
@@ -96,6 +98,7 @@ export function registerMemoryTools(
               text: `Recall failed: ${error instanceof Error ? error.message : String(error)}`,
             },
           ],
+          details: {},
           isError: true,
         };
       }
@@ -108,19 +111,21 @@ export function registerMemoryTools(
 
   pi.registerTool({
     name: 'respire_show',
+    label: 'Respire Show',
     description: 'Show full content of a specific memory entry by ID',
     parameters: Type.Object({
       id: Type.String({
         description: 'Memory entry ID (full or 8-char prefix)',
       }),
     }),
-    async execute(input) {
+    async execute(_toolCallId, params, _signal, _onUpdate, _ctx) {
       try {
-        const entry = await client.show(input.id);
+        const entry = await client.show(params.id);
 
         if (!entry) {
           return {
-            content: [{ type: 'text' as const, text: `Memory entry not found: ${input.id}` }],
+            content: [{ type: 'text' as const, text: `Memory entry not found: ${params.id}` }],
+            details: {},
           };
         }
 
@@ -144,6 +149,7 @@ export function registerMemoryTools(
               text: `Failed to show entry: ${error instanceof Error ? error.message : String(error)}`,
             },
           ],
+          details: {},
           isError: true,
         };
       }
@@ -156,6 +162,7 @@ export function registerMemoryTools(
 
   pi.registerTool({
     name: 'respire_remember',
+    label: 'Respire Remember',
     description:
       'Store a memory entry. ' +
       'Will return candidates if similar entries exist (judge-then-store). ' +
@@ -181,21 +188,22 @@ export function registerMemoryTools(
         })
       ),
     }),
-    async execute(input) {
+    async execute(_toolCallId, params, _signal, _onUpdate, _ctx) {
       if (!canWrite()) {
         return {
           content: [
             { type: 'text' as const, text: 'Memory system is in readonly or off mode. Cannot write.' },
           ],
+          details: {},
           isError: true,
         };
       }
 
       try {
-        const result = await client.remember(input.content, {
-          title: input.title,
-          importance: input.importance ?? 'trivial',
-          force: input.force ?? false,
+        const result = await client.remember(params.content, {
+          title: params.title,
+          importance: params.importance ?? 'trivial',
+          force: params.force ?? false,
           project: options.scope,
         });
 
@@ -219,7 +227,7 @@ export function registerMemoryTools(
         }
 
         const text =
-          `Stored memory: [${result.id?.slice(0, 8)}] ${input.title}\n\n` +
+          `Stored memory: [${result.id?.slice(0, 8)}] ${params.title}\n\n` +
           `This entry will appear in system prompt on next session. ` +
           `It's immediately searchable via respire_recall.`;
 
@@ -235,6 +243,7 @@ export function registerMemoryTools(
               text: `Failed to store: ${error instanceof Error ? error.message : String(error)}`,
             },
           ],
+          details: {},
           isError: true,
         };
       }
@@ -248,23 +257,25 @@ export function registerMemoryTools(
   if (canWrite()) {
     pi.registerTool({
       name: 'respire_forget',
+      label: 'Respire Forget',
       description: 'Delete a memory entry by ID (tombstone)',
       parameters: Type.Object({
         id: Type.String({
           description: 'Memory entry ID to delete',
         }),
       }),
-      async execute(input) {
+      async execute(_toolCallId, params, _signal, _onUpdate, _ctx) {
         try {
-          const success = await client.forget(input.id);
+          const success = await client.forget(params.id);
 
           return {
             content: [
               {
                 type: 'text' as const,
-                text: success ? `Deleted memory: ${input.id}` : `Failed to delete memory: ${input.id}`,
+                text: success ? `Deleted memory: ${params.id}` : `Failed to delete memory: ${params.id}`,
               },
             ],
+            details: {},
             isError: !success,
           };
         } catch (error) {
@@ -275,6 +286,7 @@ export function registerMemoryTools(
                 text: `Failed to forget: ${error instanceof Error ? error.message : String(error)}`,
               },
             ],
+            details: {},
             isError: true,
           };
         }
@@ -288,6 +300,7 @@ export function registerMemoryTools(
 
   pi.registerTool({
     name: 'respire_list',
+    label: 'Respire List',
     description: 'List recent memory entries',
     parameters: Type.Object({
       limit: Type.Optional(
@@ -297,12 +310,12 @@ export function registerMemoryTools(
         })
       ),
     }),
-    async execute(input) {
+    async execute(_toolCallId, params, _signal, _onUpdate, _ctx) {
       try {
-        const entries = await client.list({ limit: input.limit ?? 20 });
+        const entries = await client.list({ limit: params.limit ?? 20 });
 
         if (entries.length === 0) {
-          return { content: [{ type: 'text' as const, text: 'No memories found' }] };
+          return { content: [{ type: 'text' as const, text: 'No memories found' }], details: {} };
         }
 
         const items = entries
@@ -321,6 +334,7 @@ export function registerMemoryTools(
               text: `Failed to list: ${error instanceof Error ? error.message : String(error)}`,
             },
           ],
+          details: {},
           isError: true,
         };
       }
@@ -333,6 +347,7 @@ export function registerMemoryTools(
 
   pi.registerTool({
     name: 'respire_diary',
+    label: 'Respire Diary',
     description: 'List recent trivial/diary entries (chronological)',
     parameters: Type.Object({
       limit: Type.Optional(
@@ -342,12 +357,12 @@ export function registerMemoryTools(
         })
       ),
     }),
-    async execute(input) {
+    async execute(_toolCallId, params, _signal, _onUpdate, _ctx) {
       try {
-        const entries = await client.diary(input.limit ?? 10);
+        const entries = await client.diary(params.limit ?? 10);
 
         if (entries.length === 0) {
-          return { content: [{ type: 'text' as const, text: 'No diary entries found' }] };
+          return { content: [{ type: 'text' as const, text: 'No diary entries found' }], details: {} };
         }
 
         const items = entries
@@ -366,6 +381,7 @@ export function registerMemoryTools(
               text: `Failed to get diary: ${error instanceof Error ? error.message : String(error)}`,
             },
           ],
+          details: {},
           isError: true,
         };
       }

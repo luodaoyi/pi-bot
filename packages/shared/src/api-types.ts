@@ -256,6 +256,9 @@ export type SSEEvent =
   | { type: 'message_update'; botId: string; data: MessageUpdateData }
   | { type: 'bot_status'; botId: string; status: 'idle' | 'thinking' | 'streaming' }
   | { type: 'question'; questionId: string; from: string; question: string }
+  | { type: 'bot_created'; bot: BotConfig }
+  | { type: 'bot_updated'; bot: BotConfig }
+  | { type: 'bot_deleted'; id: string }
   | { type: 'system'; message: string };
 
 export interface MessageUpdateData {

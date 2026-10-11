@@ -127,7 +127,7 @@ export class Store extends EventEmitter {
 
     await this.save();
 
-    this.emit('bot_created', { bot });
+    this.emit('bot_created', { type: 'bot_created', bot });
 
     return bot;
   }
@@ -146,7 +146,7 @@ export class Store extends EventEmitter {
 
     await this.save();
 
-    this.emit('bot_updated', { bot });
+    this.emit('bot_updated', { type: 'bot_updated', bot });
 
     return bot;
   }
@@ -167,7 +167,7 @@ export class Store extends EventEmitter {
 
     await this.save();
 
-    this.emit('bot_deleted', { id });
+    this.emit('bot_deleted', { type: 'bot_deleted', id });
   }
 
   // ============================================================================
@@ -188,19 +188,16 @@ export class Store extends EventEmitter {
   }
 
   onAny(listener: (event: SSEEvent) => void): () => void {
-    const wrapper = (eventName: string, ...args: unknown[]) => {
-      // Wildcard listener that gets all events
-      listener({ type: eventName, ...args[0] } as SSEEvent);
-    };
-    this.on('bot_created', wrapper);
-    this.on('bot_updated', wrapper);
-    this.on('bot_deleted', wrapper);
-    // Add more events as they're implemented
+    const handler = (payload: unknown) => listener(payload as SSEEvent);
+
+    this.on('bot_created', handler);
+    this.on('bot_updated', handler);
+    this.on('bot_deleted', handler);
 
     return () => {
-      this.off('bot_created', wrapper);
-      this.off('bot_updated', wrapper);
-      this.off('bot_deleted', wrapper);
+      this.off('bot_created', handler);
+      this.off('bot_updated', handler);
+      this.off('bot_deleted', handler);
     };
   }
 }

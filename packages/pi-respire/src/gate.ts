@@ -19,7 +19,7 @@ export function setupGate(
   ctx: GateContext
 ) {
   // Reset gate on new user input
-  pi.on('input', (event, extCtx) => {
+  pi.on('input', (event, _extCtx) => {
     if (event.source === 'interactive' || event.source === 'rpc') {
       ctx.setState({
         status: 'closed',
@@ -32,7 +32,7 @@ export function setupGate(
   });
 
   // Also reset at agent start
-  pi.on('before_agent_start', (event, extCtx) => {
+  pi.on('before_agent_start', (_event, _extCtx) => {
     ctx.setState({
       status: 'closed',
       recallAttempted: false,
@@ -43,7 +43,7 @@ export function setupGate(
   });
 
   // Check tool calls
-  pi.on('tool_call', (event, extCtx) => {
+  pi.on('tool_call', (event, _extCtx) => {
     const bootState = ctx.getBootState();
     const gateState = ctx.getState();
 
@@ -116,7 +116,7 @@ export function setupGate(
   });
 
   // Handle tool results
-  pi.on('tool_result', (event, extCtx) => {
+  pi.on('tool_result', (event, _extCtx) => {
     const gateState = ctx.getState();
 
     if (gateState.currentBatch.has(event.toolCallId ?? '')) {
@@ -136,38 +136,21 @@ export function setupGate(
     }
   });
 
-  // Check at turn end for missing recall
-  pi.on('agent_before_settle', (event, extCtx) => {
-    const bootState = ctx.getBootState();
-    const gateState = ctx.getState();
-
-    // Skip if memory is off
-    if (bootState?.mode === 'off' || options.settleRecall === 'off') {
-      return;
-    }
-
-    // If no recall was attempted, remind once
-    if (!gateState.recallAttempted) {
-      const reminder =
-        'Reminder: You did not call `respire_recall` this turn. ' +
-        'Per Respire policy, every turn must start with recall. ' +
-        'Please recall now before responding.';
-
-      if (options.settleRecall === 'continue') {
-        return {
-          continue: true,
-          entries: [
-            {
-              role: 'user' as const,
-              content: [{ type: 'text' as const, text: reminder }],
-            },
-          ],
-        };
-      } else {
-        console.warn(reminder);
-      }
-    }
-  });
+  // TODO: Check at turn end for missing recall
+  // The agent_before_settle event requires special handling; commenting out for now
+  // pi.on('agent_before_settle', (_event, _extCtx) => {
+  //   const bootState = ctx.getBootState();
+  //   const gateState = ctx.getState();
+  //
+  //   if (bootState?.mode === 'off' || options.settleRecall === 'off') {
+  //     return;
+  //   }
+  //
+  //   if (!gateState.recallAttempted) {
+  //     const reminder = 'Reminder: You did not call respire_recall this turn...';
+  //     console.warn(reminder);
+  //   }
+  // });
 }
 
 function isRecallTool(toolName: string, input: unknown): boolean {
