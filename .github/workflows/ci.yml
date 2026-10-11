@@ -1,0 +1,106 @@
+name: CI
+
+on:
+  push:
+    branches: [main, 'cursor/**']
+  pull_request:
+    branches: [main]
+
+jobs:
+  test:
+    name: test (${{ matrix.os }}, ${{ matrix.node }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+        node: ['22.19.0']
+    
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      
+      - name: Setup Node.js ${{ matrix.node }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+          cache: 'npm'
+      
+      - name: Install dependencies
+        run: npm ci
+      
+      - name: Build
+        run: npm run build
+      
+      - name: Build web
+        run: npm run build:web
+      
+      - name: Type check
+        run: npm run typecheck
+      
+      - name: Lint
+        run: npm run lint
+      
+      - name: Test
+        run: npm test
+      
+      - name: Pack tarball
+        run: npm pack
+      
+      - name: Install Pi SDK
+        run: npm install -g @earendil-works/pi-coding-agent
+      
+      - name: Test pi install
+        shell: bash
+        run: |
+          # Extract tarball to temp dir
+          mkdir -p /tmp/pi-bot-test
+          tar -xzf pi-bot-0.1.0-beta.0.tgz -C /tmp/pi-bot-test --strip-components=1
+          
+          # Install as Pi package
+          pi install /tmp/pi-bot-test
+          
+          # Verify extension is loaded
+          pi list | grep "pi-bot" || (echo "pi-bot not found in pi list" && exit 1)
+      
+      - name: E2E Smoke Test
+        shell: bash
+        run: |
+          # Install tarball
+          mkdir -p /tmp/e2e-test && cd /tmp/e2e-test
+          npm init -y
+          TARBALL_PATH="${{ github.workspace }}/pi-bot-0.1.0-beta.0.tgz"
+          # Convert Windows path to Unix path if needed
+          if [[ "$OSTYPE" == "msys" ]] || [[ "$OSTYPE" == "win32" ]]; then
+            TARBALL_PATH="$(cygpath -u "$TARBALL_PATH")"
+          fi
+          npm install "$TARBALL_PATH"
+          
+          # Start daemon in background
+          node node_modules/pi-bot/dist/cli.js serve --dev &
+          DAEMON_PID=$!
+          
+          # Wait for daemon to start
+          sleep 5
+          
+          # Test health endpoint
+          curl -f http://localhost:8787/health || (echo "Health check failed" && kill $DAEMON_PID && exit 1)
+          
+          # Test GUI
+          curl -s http://localhost:8787/ | grep -i "<!doctype html>" || (echo "GUI not loading" && kill $DAEMON_PID && exit 1)
+          
+          # Create a bot
+          BOT_ID=$(curl -s -X POST http://localhost:8787/api/bots \
+            -H "Content-Type: application/json" \
+            -d '{"name":"TestBot","role":"assistant","instructions":"Test","model":{"provider":"mock","modelId":"test"}}' \
+            | grep -o '"id":"[^"]*"' | cut -d'"' -f4)
+          
+          echo "Created bot: $BOT_ID"
+          
+          # Test SSE endpoint (just check it connects)
+          timeout 2 curl -N http://localhost:8787/api/events || true
+          
+          # Cleanup
+          kill $DAEMON_PID
+          
+          echo "E2E smoke test passed!"
