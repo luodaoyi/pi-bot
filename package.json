@@ -1,59 +1,73 @@
 {
-  "name": "pi-bot-monorepo",
+  "name": "pi-bot",
   "version": "0.1.0",
-  "private": true,
-  "description": "Open-source port of DeepSeek-Bot to pi coding agent with Respire memory",
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/luodaoyi/pi-bot.git"
+  "description": "Multi-bot daemon with Pi SDK and Respire memory",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "bin": {
+    "pi-bot": "./dist/cli.js"
+  },
+  "pi": {
+    "name": "pi-bot",
+    "version": "0.1.0",
+    "description": "Multi-bot daemon with Pi SDK and Respire memory",
+    "main": "./dist/index.js",
+    "extensions": [
+      "./dist/respire-extension/index.js"
+    ]
+  },
+  "files": [
+    "dist"
+  ],
+  "keywords": [
+    "pi-bot",
+    "pi-package",
+    "multi-agent",
+    "respire"
+  ],
+  "scripts": {
+    "prepack": "pnpm run build && pnpm run build:web && pnpm run copy-web",
+    "copy-web": "rm -rf dist/web && mkdir -p dist/web && cp -r web/dist/* dist/web/",
+    "build": "tsc -b",
+    "build:web": "cd web && pnpm install && pnpm build",
+    "dev": "tsx watch src/daemon/cli.ts serve --dev",
+    "start": "node dist/cli.js serve",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "clean": "rm -rf dist *.tsbuildinfo web/dist",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint src --ext .ts",
+    "lint:fix": "eslint src --ext .ts --fix"
   },
   "author": "pi-bot contributors",
   "license": "Apache-2.0",
-  "engines": {
-    "node": ">=22.19.0",
-    "pnpm": ">=8.0.0"
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/luodaoyi/pi-bot.git"
   },
-  "scripts": {
-    "build": "pnpm -r --filter='!@pi-bot/web' build",
-    "dev": "pnpm -r --parallel --filter='!@pi-bot/web' dev",
-    "test": "pnpm -r --filter='!@pi-bot/web' test",
-    "test:watch": "pnpm -r --parallel --filter='!@pi-bot/web' test:watch",
-    "lint": "pnpm -r --filter='!@pi-bot/web' lint",
-    "lint:fix": "pnpm -r --filter='!@pi-bot/web' lint:fix",
-    "typecheck": "pnpm -r --filter='!@pi-bot/web' typecheck",
-    "clean": "pnpm -r exec rm -rf dist node_modules .turbo",
-    "prepare": "husky install || true"
+  "dependencies": {
+    "@hono/node-server": "^2.1.4",
+    "@sinclair/typebox": "^0.34.24",
+    "@types/better-sqlite3": "^9.6.0",
+    "better-sqlite3": "^13.0.3",
+    "croner": "^10.0.1",
+    "hono": "^4.6.14",
+    "zod": "^3.24.1"
+  },
+  "peerDependencies": {
+    "@earendil-works/pi-ai": "*",
+    "@earendil-works/pi-coding-agent": "*"
   },
   "devDependencies": {
     "@earendil-works/pi-ai": "^1.1.0",
     "@earendil-works/pi-coding-agent": "^1.1.0",
-    "@eslint/js": "^10.0.1",
-    "@sinclair/typebox": "^0.34.52",
     "@types/node": "^22.10.2",
-    "@typescript-eslint/eslint-plugin": "^8.18.2",
-    "@typescript-eslint/parser": "^8.18.2",
-    "eslint": "^9.17.0",
-    "husky": "^9.1.7",
-    "lint-staged": "^15.2.11",
-    "prettier": "^3.4.2",
     "tsx": "^4.19.2",
     "typescript": "^5.7.2",
-    "typescript-eslint": "^8.71.1",
     "vitest": "^2.1.8"
   },
-  "lint-staged": {
-    "*.{ts,tsx}": [
-      "eslint --fix",
-      "prettier --write"
-    ],
-    "*.{json,md}": [
-      "prettier --write"
-    ]
-  },
-  "dependencies": {
-    "@hono/node-server": "^2.1.4",
-    "@types/better-sqlite3": "^9.6.0",
-    "better-sqlite3": "^13.0.3",
-    "croner": "^10.0.1"
+  "engines": {
+    "node": ">=22.19.0"
   }
 }
