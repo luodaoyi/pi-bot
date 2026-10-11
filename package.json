@@ -8,6 +8,13 @@
   "bin": {
     "pi-bot": "./dist/cli.js"
   },
+  "exports": {
+    ".": "./dist/index.js",
+    "#shared/*": "./dist/shared/*.js",
+    "#respire-client/*": "./dist/respire-client/*.js",
+    "#respire-extension/*": "./dist/respire-extension/*.js",
+    "#daemon/*": "./dist/daemon/*.js"
+  },
   "pi": {
     "name": "pi-bot",
     "version": "0.1.0",
