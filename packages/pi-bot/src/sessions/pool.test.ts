@@ -85,11 +85,15 @@ describe('SessionPool', () => {
     const bot2: BotConfig = { ...testBot, id: 'bot-2' };
     const bot3: BotConfig = { ...testBot, id: 'bot-3' };
 
-    await pool.getSession(bot1);
-    await pool.getSession(bot2);
+    const session1 = await pool.getSession(bot1);
+    const session2 = await pool.getSession(bot2);
+    
+    // Make sessions active (not idle) so they can't be evicted
+    session1.info.status = 'active';
+    session2.info.status = 'active';
 
-    // Third session should fail (max is 2)
-    await expect(pool.getSession(bot3)).rejects.toThrow('Session pool at capacity');
+    // Third session should fail (max is 2, no idle sessions)
+    await expect(pool.getSession(bot3)).rejects.toThrow(/Session pool at capacity|no idle sessions to evict/);
   });
 
   it('should send message to bot', async () => {

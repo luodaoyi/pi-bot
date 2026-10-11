@@ -9,6 +9,28 @@ import { SessionPool } from '../sessions/pool.js';
 import type { BotConfig } from '@pi-bot/shared';
 import { EventEmitter } from 'node:events';
 
+// Mock Pi SDK
+vi.mock('@earendil-works/pi-coding-agent', () => ({
+  createAgentSession: vi.fn(() => {
+    const emitter = new EventEmitter();
+    return {
+      session: Object.assign(emitter, {
+        prompt: vi.fn(),
+        subscribe: vi.fn((fn: any) => fn),
+        setSessionName: vi.fn(),
+        dispose: vi.fn(),
+      }) as any,
+      sessionManager: {} as any,
+    };
+  }),
+  SessionManager: {
+    create: vi.fn(async (sessionPath: string) => ({
+      sessionPath,
+      sessionId: 'test-session-' + Math.random(),
+    })),
+  },
+}));
+
 // Mock implementations
 class MockStore extends EventEmitter {
   private bots = new Map<string, BotConfig>();
