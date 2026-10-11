@@ -129,31 +129,9 @@ export class ErrorBoundary extends Component<Props, State> {
 export const PageErrorBoundary: React.FC<{
   children: ReactNode;
   pageName?: string;
-}> = ({ children, pageName }) => {
+}> = ({ children }) => {
   return (
-    <ErrorBoundary
-      fallback={
-        <div className="flex items-center justify-center h-full p-8">
-          <div className="max-w-lg w-full bg-white dark:bg-gray-800 rounded-lg shadow p-6">
-            <div className="flex items-center gap-3 mb-4">
-              <AlertTriangle className="text-yellow-500" size={24} />
-              <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
-                {pageName || '页面'}加载失败
-              </h2>
-            </div>
-            <p className="text-gray-700 dark:text-gray-300 mb-4">
-              无法加载此页面的内容，请尝试刷新。
-            </p>
-            <button
-              onClick={() => window.location.reload()}
-              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-            >
-              刷新页面
-            </button>
-          </div>
-        </div>
-      }
-    >
+    <ErrorBoundary>
       {children}
     </ErrorBoundary>
   );

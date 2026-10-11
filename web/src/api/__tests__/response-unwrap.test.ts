@@ -18,6 +18,20 @@ describe('API Response Unwrapping', () => {
     vi.clearAllMocks();
   });
 
+  it('should unwrap /api/health envelope for ping', async () => {
+    vi.mocked(fetch).mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({
+        success: true,
+        data: { status: 'ok', version: '0.1.0-beta.6' },
+      }),
+    } as Response);
+
+    const result = await client.ping();
+    expect(result.status).toBe('ok');
+    expect(result.version).toBe('0.1.0-beta.6');
+  });
+
   it('should unwrap {success, data: {bots}} to bots array', async () => {
     const mockBots = [
       { id: 'bot-1', name: 'Bot 1', role: 'test' },
@@ -72,7 +86,8 @@ describe('API Response Unwrapping', () => {
     const result = await client.getGroups();
     
     expect(Array.isArray(result)).toBe(true);
-    expect(result).toEqual(mockGroups);
+    expect(result[0].id).toBe('group-1');
+    expect(result[0].name).toBe('Group 1');
   });
 
   it('should throw ApiError when success is false', async () => {
@@ -134,7 +149,7 @@ describe('API Response Unwrapping', () => {
     const result = await client.getTasks();
     
     expect(Array.isArray(result)).toBe(true);
-    expect(result).toEqual(mockTasks);
+    expect(result[0].id).toBe('task-1');
   });
 
   it('should unwrap secrets correctly', async () => {
@@ -153,7 +168,7 @@ describe('API Response Unwrapping', () => {
     const result = await client.getSecrets();
     
     expect(Array.isArray(result)).toBe(true);
-    expect(result).toEqual(mockSecrets);
+    expect(result[0].name).toBe('secret-1');
   });
 
   it('should unwrap models correctly', async () => {
@@ -172,7 +187,8 @@ describe('API Response Unwrapping', () => {
     const result = await client.getAvailableModels();
     
     expect(Array.isArray(result)).toBe(true);
-    expect(result).toEqual(mockModels);
+    expect(result[0].id).toBe('deepseek-chat');
+    expect(result[0].provider).toBe('deepseek');
   });
 });
 

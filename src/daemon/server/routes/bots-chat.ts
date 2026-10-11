@@ -20,16 +20,21 @@ export function setupBotChatRoutes(
    */
   app.post('/api/bots/:id/chat', async (c) => {
     const botId = c.req.param('id');
-    const body = (await c.req.json()) as SendMessageRequest;
+    const body = (await c.req.json()) as SendMessageRequest & { content?: string };
+    const message = body.message ?? body.content;
 
     const bot = await store.getBot(botId);
     if (!bot) {
       return c.json({ success: false, error: 'Bot not found' }, 404);
     }
 
+    if (!message) {
+      return c.json({ success: false, error: 'message is required' }, 400);
+    }
+
     try {
       // Send message to bot session
-      await sessionPool.sendMessage(botId, body.message, bot);
+      await sessionPool.sendMessage(botId, message, bot);
 
       // Stream response
       return stream(c, async (stream) => {

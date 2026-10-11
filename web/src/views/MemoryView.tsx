@@ -1,48 +1,64 @@
 import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Search, Plus, Edit, Trash2, Brain } from 'lucide-react';
-import { createApiClient } from '@/api';
+import { Search, Brain } from 'lucide-react';
+import { api, ApiError } from '@/api';
 import type { MemoryEntry } from '@/types';
-
-const api = createApiClient();
+import { PageStatus } from '@/components/PageStatus';
 
 export const MemoryView: React.FC = () => {
   const { t } = useTranslation();
   const [entries, setEntries] = useState<MemoryEntry[]>([]);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [respireDown, setRespireDown] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [scope, setScope] = useState<'all' | 'bot' | 'team'>('all');
   const [summary, setSummary] = useState('');
 
   const loadMemory = async () => {
     setLoading(true);
+    setError(null);
+    setRespireDown(false);
     try {
+      const status = await api.getMemoryStatus();
+      if (!status.available) {
+        setRespireDown(true);
+        setEntries([]);
+        setSummary('');
+        setError(status.reason || t('memory.respireNotRunning'));
+        return;
+      }
+
       const results = await api.searchMemory({
         query: searchQuery || undefined,
         scope: scope === 'all' ? undefined : scope,
         limit: 50,
       });
       setEntries(results);
-      
-      // Load summary for team scope
+
       if (scope === 'team') {
         const sum = await api.getMemorySummary('team');
         setSummary(sum);
+      } else {
+        setSummary('');
       }
-    } catch (error) {
-      console.error('Failed to load memory:', error);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : t('common.loadFailed');
+      const down = err instanceof ApiError && (err.status === 503 || /respire/i.test(err.message));
+      setRespireDown(down);
+      setError(down ? (message || t('memory.respireNotRunning')) : message);
+      setEntries([]);
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    loadMemory();
+    void loadMemory();
   }, [scope]);
 
   return (
     <div className="h-full flex flex-col">
-      {/* Header */}
       <div className="p-6 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-3">
@@ -58,7 +74,6 @@ export const MemoryView: React.FC = () => {
           </div>
         </div>
 
-        {/* Search Bar */}
         <div className="flex gap-3">
           <div className="flex-1 relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
@@ -66,7 +81,7 @@ export const MemoryView: React.FC = () => {
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              onKeyPress={(e) => e.key === 'Enter' && loadMemory()}
+              onKeyPress={(e) => e.key === 'Enter' && void loadMemory()}
               placeholder={t('memory.searchPlaceholder')}
               className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
             />
@@ -81,14 +96,14 @@ export const MemoryView: React.FC = () => {
             <option value="team">{t('memory.scopeTeam')}</option>
           </select>
           <button
-            onClick={loadMemory}
+            type="button"
+            onClick={() => void loadMemory()}
             className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
           >
             {t('common.search')}
           </button>
         </div>
 
-        {/* Summary */}
         {summary && (
           <div className="mt-4 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
             <p className="text-sm text-gray-700 dark:text-gray-300">{summary}</p>
@@ -96,13 +111,15 @@ export const MemoryView: React.FC = () => {
         )}
       </div>
 
-      {/* Memory List */}
       <div className="flex-1 overflow-y-auto p-6">
-        {loading ? (
-          <div className="text-center text-gray-500 py-8">{t('common.loading')}</div>
-        ) : entries.length === 0 ? (
-          <div className="text-center text-gray-500 py-8">{t('memory.noResults')}</div>
-        ) : (
+        <PageStatus
+          loading={loading}
+          error={error}
+          empty={!loading && !error && entries.length === 0}
+          emptyText={t('memory.noResults')}
+          onRetry={() => void loadMemory()}
+          state={respireDown ? 'respire-down' : undefined}
+        >
           <div className="space-y-4">
             {entries.map((entry) => (
               <div
@@ -118,36 +135,15 @@ export const MemoryView: React.FC = () => {
                     )}
                     <p className="text-gray-700 dark:text-gray-300">{entry.content}</p>
                   </div>
-                  <div className="flex gap-2 ml-4">
-                    <button className="p-2 text-gray-500 hover:text-blue-600 transition-colors">
-                      <Edit size={16} />
-                    </button>
-                    <button className="p-2 text-gray-500 hover:text-red-600 transition-colors">
-                      <Trash2 size={16} />
-                    </button>
-                  </div>
                 </div>
                 <div className="flex items-center gap-4 text-xs text-gray-500 dark:text-gray-400">
-                  <span className={`px-2 py-1 rounded ${
-                    entry.scope === 'team'
-                      ? 'bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200'
-                      : 'bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200'
-                  }`}>
-                    {t(`memory.scope${entry.scope.charAt(0).toUpperCase() + entry.scope.slice(1)}`)}
-                  </span>
-                  <span className={`px-2 py-1 rounded ${
-                    entry.importance === 'important'
-                      ? 'bg-yellow-100 dark:bg-yellow-900 text-yellow-800 dark:text-yellow-200'
-                      : 'bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-200'
-                  }`}>
-                    {t(`memory.importance${entry.importance.charAt(0).toUpperCase() + entry.importance.slice(1)}`)}
-                  </span>
-                  <span>{new Date(entry.createdAt).toLocaleString()}</span>
+                  <span>{entry.scope}</span>
+                  <span>{entry.createdAt ? new Date(entry.createdAt).toLocaleString() : ''}</span>
                 </div>
               </div>
             ))}
           </div>
-        )}
+        </PageStatus>
       </div>
     </div>
   );

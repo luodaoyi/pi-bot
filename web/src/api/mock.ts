@@ -17,6 +17,7 @@ import type {
   Message,
   Group,
   MemoryEntry,
+  MemoryStatus,
   ScheduledTask,
   Secret,
   UsageStats,
@@ -280,7 +281,11 @@ export class MockApiClient implements ApiClient {
     await delay(300);
     const group: Group = {
       id: `group-${Date.now()}`,
-      ...data,
+      name: data.name,
+      members: data.members,
+      admin: Array.isArray(data.admin) ? data.admin : data.admin ? [data.admin] : data.members.slice(0, 1),
+      mode: data.mode,
+      notice: data.notice,
       createdAt: new Date().toISOString(),
     };
     this.groups.set(group.id, group);
@@ -291,7 +296,15 @@ export class MockApiClient implements ApiClient {
     await delay(200);
     const group = this.groups.get(id);
     if (!group) throw new ApiError(404, 'Group not found');
-    const updated = { ...group, ...data };
+    const updated: Group = {
+      ...group,
+      ...data,
+      admin: data.admin === undefined
+        ? group.admin
+        : Array.isArray(data.admin)
+          ? data.admin
+          : [data.admin],
+    };
     this.groups.set(id, updated);
     return updated;
   }
@@ -319,6 +332,11 @@ export class MockApiClient implements ApiClient {
     };
     messages.push(msg);
     this.groupMessages.set(id, messages);
+  }
+
+  async getMemoryStatus(): Promise<MemoryStatus> {
+    await delay(50);
+    return { available: true };
   }
 
   async searchMemory(data: MemorySearchRequest): Promise<MemoryEntry[]> {

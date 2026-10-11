@@ -9,6 +9,7 @@ import {
   deletePid,
   readPort,
   writePort,
+  deletePort,
   isProcessRunning,
 } from '../daemon-manager.js';
 
@@ -59,6 +60,13 @@ describe('daemon-manager', () => {
     
     const readBack = readPort();
     expect(readBack).toBe(testPort);
+  });
+
+  it('should delete port file', () => {
+    writePort(9999);
+    expect(existsSync(getPortFilePath())).toBe(true);
+    deletePort();
+    expect(existsSync(getPortFilePath())).toBe(false);
   });
 
   it('should check if current process is running', () => {

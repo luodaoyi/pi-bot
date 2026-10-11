@@ -4,3 +4,6 @@ export * from './memory-types.js';
 export * from './scheduler-types.js';
 export * from './secrets-types.js';
 export * from './usage-types.js';
+export * from './settings-types.js';
+export * from './version.js';
+export * from './fs-atomic.js';

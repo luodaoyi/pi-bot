@@ -27,7 +27,8 @@
     "createdAt": "创建时间",
     "chat": "对话",
     "sending": "发送中...",
-    "streaming": "生成中..."
+    "streaming": "生成中...",
+    "empty": "暂无机器人"
   },
   "group": {
     "list": "群聊列表",
@@ -41,7 +42,8 @@
     "modeEveryone": "所有人",
     "modeAdmin": "仅管理员",
     "notice": "公告",
-    "post": "发送消息"
+    "post": "发送消息",
+    "empty": "暂无群聊"
   },
   "memory": {
     "title": "记忆管理",
@@ -60,7 +62,9 @@
     "update": "更新记忆",
     "forget": "遗忘",
     "summary": "摘要",
-    "noResults": "未找到相关记忆"
+    "noResults": "未找到相关记忆",
+    "respireNotRunning": "Respire not running",
+    "respireHint": "记忆功能依赖本机 Respire（127.0.0.1:15169）。请先启动 Respire 后再重试。"
   },
   "task": {
     "list": "定时任务",
@@ -80,7 +84,8 @@
     "enabled": "启用",
     "disabled": "禁用",
     "nextRun": "下次执行",
-    "lastRun": "上次执行"
+    "lastRun": "上次执行",
+    "empty": "暂无任务"
   },
   "secret": {
     "list": "密钥管理",
@@ -92,7 +97,8 @@
     "value": "值",
     "valuePlaceholder": "输入密钥值（不会显示）",
     "createdAt": "创建时间",
-    "lastUsedAt": "最后使用"
+    "lastUsedAt": "最后使用",
+    "empty": "暂无密钥"
   },
   "usage": {
     "title": "用量统计",
@@ -107,7 +113,8 @@
     "cacheRead": "缓存读取",
     "cacheWrite": "缓存写入",
     "cost": "费用",
-    "total": "总计"
+    "total": "总计",
+    "empty": "暂无用量数据"
   },
   "settings": {
     "title": "设置",
@@ -136,6 +143,9 @@
     "confirm": "确认",
     "back": "返回",
     "send": "发送",
-    "refresh": "刷新"
+    "refresh": "刷新",
+    "retry": "重试",
+    "empty": "暂无数据",
+    "loadFailed": "加载失败"
   }
 }

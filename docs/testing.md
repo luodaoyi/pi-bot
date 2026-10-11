@@ -6,6 +6,7 @@ pi-agent-bot (CLI: `pi-bot`) uses [Vitest](https://vitest.dev/) for testing.
 
 ```bash
 npm test
+npm run test:e2e   # requires build + copy-web + Playwright Chromium
 ```
 
 ## Test Coverage

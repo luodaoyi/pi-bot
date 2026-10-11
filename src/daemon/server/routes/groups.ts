@@ -44,7 +44,11 @@ export function setupGroupRoutes(
    * Create a new group
    */
   app.post('/api/groups', async (c) => {
-    const body = (await c.req.json()) as GroupCreateRequest;
+    const raw = (await c.req.json()) as GroupCreateRequest & { admin?: string | string[] };
+    const body: GroupCreateRequest = {
+      ...raw,
+      admin: raw.admin === undefined ? undefined : Array.isArray(raw.admin) ? raw.admin : [raw.admin],
+    };
 
     try {
       const group = await groupManager.createGroup(body);

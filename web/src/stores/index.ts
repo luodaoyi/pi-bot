@@ -2,27 +2,26 @@
 
 import { create } from 'zustand';
 import type { Bot, Message, ChatSession } from '@/types';
-import { createApiClient } from '@/api';
-
-const api = createApiClient();
+import { api } from '@/api';
 
 interface AppState {
-  // Bots
   bots: Bot[];
   selectedBotId: string | null;
   loadBots: () => Promise<void>;
-  selectBot: (id: string) => void;
+  selectBot: (id: string) => Promise<void>;
+  createBot: (data: {
+    name: string;
+    role: string;
+    instructions: string;
+  }) => Promise<Bot>;
 
-  // Chat
   chatSessions: Map<string, ChatSession>;
   sendMessage: (botId: string, content: string) => Promise<void>;
   getChatSession: (botId: string) => ChatSession | undefined;
-  
-  // UI State
+
   sidebarOpen: boolean;
   toggleSidebar: () => void;
-  
-  // Loading states
+
   loading: boolean;
   error: string | null;
   setError: (error: string | null) => void;
@@ -40,65 +39,87 @@ export const useAppStore = create<AppState>((set, get) => ({
     try {
       set({ loading: true, error: null });
       const bots = await api.getBots();
-      // Defensive: ensure bots is an array
       const botsArray = Array.isArray(bots) ? bots : [];
       set({ bots: botsArray, loading: false });
-      
-      // Select first bot if none selected
+
       if (!get().selectedBotId && botsArray.length > 0) {
-        set({ selectedBotId: botsArray[0].id });
+        const chief = botsArray.find((b) => b.isMain || b.name === 'Chief') ?? botsArray[0];
+        await get().selectBot(chief.id);
       }
     } catch (error) {
-      set({ 
+      set({
         error: error instanceof Error ? error.message : 'Failed to load bots',
         loading: false,
-        bots: [] // Ensure bots is always an array
+        bots: [],
       });
     }
   },
 
-  selectBot: (id: string) => {
+  selectBot: async (id: string) => {
     set({ selectedBotId: id });
-    
-    // Load chat history if not already loaded
-    const session = get().chatSessions.get(id);
-    if (!session) {
-      api.getChatHistory(id).then(messages => {
-        const sessions = new Map(get().chatSessions);
-        sessions.set(id, {
-          botId: id,
-          messages,
-          isStreaming: false,
-        });
-        set({ chatSessions: sessions });
+
+    const existing = get().chatSessions.get(id);
+    if (existing) {
+      return;
+    }
+
+    try {
+      const messages = await api.getChatHistory(id);
+      const sessions = new Map(get().chatSessions);
+      sessions.set(id, {
+        botId: id,
+        messages,
+        isStreaming: false,
+      });
+      set({ chatSessions: sessions });
+    } catch (error) {
+      const sessions = new Map(get().chatSessions);
+      sessions.set(id, {
+        botId: id,
+        messages: [],
+        isStreaming: false,
+      });
+      set({
+        chatSessions: sessions,
+        error: error instanceof Error ? error.message : 'Failed to load history',
       });
     }
+  },
+
+  createBot: async (data) => {
+    const bot = await api.createBot({
+      name: data.name,
+      role: data.role,
+      instructions: data.instructions,
+      model: { provider: 'deepseek', modelId: 'deepseek-chat' },
+    });
+    set({ bots: [...get().bots, bot] });
+    await get().selectBot(bot.id);
+    return bot;
   },
 
   sendMessage: async (botId: string, content: string) => {
     try {
       const sessions = new Map(get().chatSessions);
-      const session = sessions.get(botId);
-      
-      if (!session) return;
+      let session = sessions.get(botId);
 
-      // Add user message
+      if (!session) {
+        session = { botId, messages: [], isStreaming: false };
+        sessions.set(botId, session);
+      }
+
       const userMessage: Message = {
         id: `msg-${Date.now()}`,
         role: 'user',
         content,
         timestamp: new Date().toISOString(),
       };
-      
+
       session.messages.push(userMessage);
       session.isStreaming = true;
       sessions.set(botId, { ...session });
       set({ chatSessions: new Map(sessions) });
 
-      // Send to API
-      await api.sendMessage(botId, { content });
-
-      // Start streaming response
       const assistantMessage: Message = {
         id: `msg-${Date.now()}-assistant`,
         role: 'assistant',
@@ -107,34 +128,35 @@ export const useAppStore = create<AppState>((set, get) => ({
         botId,
         streaming: true,
       };
-      
+
       session.messages.push(assistantMessage);
       sessions.set(botId, { ...session });
       set({ chatSessions: new Map(sessions) });
 
-      const cleanup = api.streamChat(botId, (event) => {
+      api.streamChat(botId, (event) => {
         const currentSessions = get().chatSessions;
         const currentSession = currentSessions.get(botId);
         if (!currentSession) return;
 
         const messages = [...currentSession.messages];
-        const msgIndex = messages.findIndex(m => m.id === assistantMessage.id);
-        
+        const msgIndex = messages.findIndex((m) => m.id === assistantMessage.id);
+
         if (msgIndex >= 0) {
           if (event.type === 'text_delta' && event.content) {
             messages[msgIndex].content += event.content;
-          } else if (event.type === 'agent_settled') {
+          } else if (event.type === 'agent_settled' || event.type === 'error') {
             messages[msgIndex].streaming = false;
             currentSession.isStreaming = false;
+            if (event.type === 'error' && event.content && !messages[msgIndex].content) {
+              messages[msgIndex].content = event.content;
+            }
           }
-          
+
           const newSessions = new Map(currentSessions);
           newSessions.set(botId, { ...currentSession, messages });
           set({ chatSessions: newSessions });
         }
-      });
-
-      // Cleanup will be called automatically by the API client
+      }, content);
     } catch (error) {
       set({ error: error instanceof Error ? error.message : 'Failed to send message' });
     }

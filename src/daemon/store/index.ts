@@ -2,7 +2,8 @@
  * Store: Manages bots, state, and persistence
  */
 
-import { readFile, writeFile, mkdir } from 'node:fs/promises';
+import { readFile, unlink } from 'node:fs/promises';
+import { atomicWriteJson } from '#shared/index.js';
 import { join } from 'node:path';
 import { randomUUID } from 'node:crypto';
 import EventEmitter from 'node:events';
@@ -57,17 +58,18 @@ export class Store extends EventEmitter {
       }
       // State file doesn't exist, will be created on first save
     }
+
+    // 清理上次异常退出留下的临时文件
+    try {
+      await unlink(`${this.statePath}.tmp`);
+    } catch {
+      // 无残留则忽略
+    }
   }
 
   async save() {
     this.state.revision++;
-    const tmpPath = `${this.statePath}.tmp`;
-
-    await mkdir(join(expandHome(this.config.host.home)), { recursive: true });
-    await writeFile(tmpPath, JSON.stringify(this.state, null, 2), 'utf-8');
-
-    // Atomic rename
-    await writeFile(this.statePath, JSON.stringify(this.state, null, 2), 'utf-8');
+    await atomicWriteJson(this.statePath, this.state);
   }
 
   /**
