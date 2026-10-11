@@ -1,6 +1,6 @@
 # Testing
 
-pi-bot uses [Vitest](https://vitest.dev/) for testing.
+pi-agent-bot (CLI: `pi-bot`) uses [Vitest](https://vitest.dev/) for testing.
 
 ## Running Tests
 

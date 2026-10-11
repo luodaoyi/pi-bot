@@ -47,10 +47,12 @@ See [pi documentation](https://github.com/earendil-works/pi) for details.
 
 ## Installation
 
-### Via npm (when published)
+### Via npm
 
 ```bash
-npm install -g pi-bot pi-respire
+npm install -g pi-agent-bot
+# Or install as a Pi package
+pi install npm:pi-agent-bot
 ```
 
 ### From source
@@ -100,7 +102,7 @@ curl -X POST http://localhost:16888/api/bots/bot-xxx/messages \
 
 ## Configuration
 
-Configure via environment variables or `~/.pi-bot/config.json`:
+Configure via environment variables or `~/.pi-bot/config.json` (CLI uses `pi-bot` command):
 
 ```json
 {
