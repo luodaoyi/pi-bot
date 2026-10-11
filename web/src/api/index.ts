@@ -1,12 +1,12 @@
 // API client factory
-// 生产环境永远走真实 daemon HTTP 客户端；mock 仅用于单测直接 import
+// 生产环境永远走真实 daemon HTTP 客户端；mock 仅用于单测直接 import '@/api/mock'
 
 import { HttpApiClient } from './http';
 import type { ApiClient } from './client';
 
 export * from './client';
 export * from './http';
-export { MockApiClient } from './mock';
+export * from './types';
 
 let singleton: ApiClient | null = null;
 
@@ -18,8 +18,7 @@ export function createApiClient(): ApiClient {
     return singleton;
   }
 
-  // @ts-expect-error - Vite env types
-  const baseUrl = import.meta.env?.VITE_API_BASE_URL as string | undefined;
+  const baseUrl = import.meta.env.VITE_API_BASE_URL;
   singleton = new HttpApiClient(baseUrl);
   return singleton;
 }

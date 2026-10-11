@@ -13,15 +13,25 @@ import type {
   Settings,
   StreamEvent,
 } from '@/types';
+import type {
+  BotSseEvent,
+  ChatAccepted,
+  ModelsResponse,
+  ModelRef,
+  OAuthStart,
+  OAuthStatus,
+  ProviderInfo,
+  SessionDetail,
+  SessionSummary,
+  ThinkingLevel,
+} from './types';
 
 export interface CreateBotRequest {
   name: string;
   role: string;
   instructions: string;
-  model: {
-    provider: string;
-    modelId: string;
-  };
+  model?: ModelRef | null;
+  thinking?: ThinkingLevel | null;
   look?: {
     avatar?: string;
     color?: string;
@@ -33,10 +43,8 @@ export interface UpdateBotRequest {
   name?: string;
   role?: string;
   instructions?: string;
-  model?: {
-    provider: string;
-    modelId: string;
-  };
+  model?: ModelRef | null;
+  thinking?: ThinkingLevel | null;
   look?: {
     avatar?: string;
     color?: string;
@@ -143,6 +151,32 @@ export interface ApiClient {
 
   // Models
   getAvailableModels(): Promise<ModelInfo[]>;
+  getModels(): Promise<ModelsResponse>;
+
+  // Providers / auth
+  getProviders(): Promise<ProviderInfo[]>;
+  setProviderApiKey(id: string, apiKey: string): Promise<{ configured: true }>;
+  deleteProviderAuth(id: string): Promise<void>;
+  startProviderOAuth(id: string): Promise<OAuthStart>;
+  getProviderOAuthStatus(id: string, flowId: string): Promise<OAuthStatus>;
+
+  // Sessions
+  listSessions(botId: string): Promise<SessionSummary[]>;
+  createSession(botId: string, name?: string): Promise<SessionSummary>;
+  getSession(botId: string, sessionId: string): Promise<SessionDetail>;
+  updateSession(
+    botId: string,
+    sessionId: string,
+    data: { name?: string; model?: ModelRef | null; thinking?: ThinkingLevel | null }
+  ): Promise<SessionSummary>;
+  activateSession(botId: string, sessionId: string): Promise<SessionSummary>;
+  forkSession(botId: string, sessionId: string, entryId: string): Promise<SessionSummary>;
+  deleteSession(botId: string, sessionId: string): Promise<void>;
+
+  // Chat (contract: 202 + SSE /api/events)
+  sendChat(botId: string, message: string, sessionId?: string): Promise<ChatAccepted>;
+  abortChat(botId: string, sessionId?: string): Promise<void>;
+  subscribeEvents(onEvent: (event: BotSseEvent) => void): () => void;
 
   // Settings
   getSettings(): Promise<Settings>;

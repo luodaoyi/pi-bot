@@ -49,7 +49,8 @@ describe('API Response Unwrapping', () => {
     const result = await client.getBots();
     
     expect(Array.isArray(result)).toBe(true);
-    expect(result).toEqual(mockBots);
+    expect(result.map((b) => b.id)).toEqual(['bot-1', 'bot-2']);
+    expect(result[0].name).toBe('Bot 1');
     expect(result.length).toBe(2);
   });
 
@@ -66,8 +67,9 @@ describe('API Response Unwrapping', () => {
 
     const result = await client.getBot('bot-1');
     
-    expect(result).toEqual(mockBot);
     expect(result.id).toBe('bot-1');
+    expect(result.name).toBe('Test Bot');
+    expect(result.role).toBe('tester');
   });
 
   it('should unwrap {success, data: {groups}} to groups array', async () => {
@@ -173,14 +175,14 @@ describe('API Response Unwrapping', () => {
 
   it('should unwrap models correctly', async () => {
     const mockModels = [
-      { provider: 'deepseek', modelId: 'deepseek-chat' },
+      { provider: 'deepseek', id: 'deepseek-chat', name: 'DeepSeek Chat', contextWindow: 128000, reasoning: false, input: ['text'], hasAuth: true },
     ];
 
     vi.mocked(fetch).mockResolvedValueOnce({
       ok: true,
       json: async () => ({
         success: true,
-        data: { models: mockModels },
+        data: { models: mockModels, defaultModel: { provider: 'deepseek', id: 'deepseek-chat' }, defaultThinking: 'medium' },
       }),
     } as Response);
 
@@ -189,6 +191,43 @@ describe('API Response Unwrapping', () => {
     expect(Array.isArray(result)).toBe(true);
     expect(result[0].id).toBe('deepseek-chat');
     expect(result[0].provider).toBe('deepseek');
+    expect(result[0].hasAuth).toBe(true);
+  });
+
+  it('falls back from /api/models 404 to /api/system/models', async () => {
+    vi.mocked(fetch)
+      .mockResolvedValueOnce({
+        ok: false,
+        status: 404,
+        statusText: 'Not Found',
+        json: async () => ({ success: false, error: 'Not Found' }),
+      } as Response)
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          success: true,
+          data: { models: [{ provider: 'deepseek', modelId: 'deepseek-flash' }] },
+        }),
+      } as Response);
+
+    const catalog = await client.getModels();
+    expect(catalog.models[0].id).toBe('deepseek-flash');
+  });
+
+  it('unwraps session list envelope', async () => {
+    vi.mocked(fetch).mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({
+        success: true,
+        data: {
+          sessions: [{ id: 's1', name: 'A', createdAt: '', updatedAt: '', messageCount: 2, model: null, thinking: null, isActive: true }],
+        },
+      }),
+    } as Response);
+
+    const sessions = await client.listSessions('bot-1');
+    expect(sessions[0].id).toBe('s1');
+    expect(sessions[0].isActive).toBe(true);
   });
 });
 
@@ -223,7 +262,8 @@ describe('Original Bug Regression Test', () => {
     
     // Should be the actual bots array
     expect(Array.isArray(result)).toBe(true);
-    expect(result).toEqual(mockBots);
+    expect(result[0].id).toBe('bot-1');
+    expect(result[0].name).toBe('Bot 1');
     
     // This should not throw (was the original error)
     expect(() => result.map((b: any) => b.id)).not.toThrow();

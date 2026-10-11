@@ -25,7 +25,10 @@ function attachGuards(page: Page) {
 
   page.on('console', (msg) => {
     if (msg.type() === 'error') {
-      errors.push(`[console.error] ${msg.text()}`);
+      const text = msg.text();
+      // 静态资源 404（favicon 等）不是 API 失败
+      if (/Failed to load resource:.*404/i.test(text)) return;
+      errors.push(`[console.error] ${text}`);
     }
   });
   page.on('pageerror', (error) => {
@@ -121,6 +124,14 @@ test.describe('PI-Bot Web GUI E2E (real daemon)', () => {
     await expect(page).toHaveURL(/\/bots/);
     await expect(page.getByText('Chief').first()).toBeVisible();
     await expect(page.getByTestId('chat-input')).toBeVisible();
+    await expect(page.getByTestId('session-sidebar')).toBeVisible();
+    await expect(page.getByTestId('model-picker')).toBeVisible();
+    await expect(page.locator('[data-testid="model-picker-select"] option').nth(1)).toBeAttached();
+    await expect(page.getByTestId('thinking-selector')).toBeVisible();
+    await expect(page.getByTestId('session-info')).toBeVisible();
+    await expect(page.getByTestId('session-new')).toBeEnabled();
+    await page.getByTestId('session-new').click();
+    await expect(page.getByTestId('session-item').first()).toBeVisible({ timeout: 8000 });
     await guards.assertClean('root/bots');
 
     await page.goto(`${BASE_URL}/bots`);
@@ -181,6 +192,16 @@ test.describe('PI-Bot Web GUI E2E (real daemon)', () => {
     await waitReady(page, 'settings');
     await expect(page.getByText('设置').first()).toBeVisible();
     await expect(page.getByRole('button', { name: '保存' })).toBeVisible();
+    await expect(page.getByTestId('settings-tab-general')).toBeVisible();
+    await page.getByTestId('settings-tab-models').click();
+    await expect(page.getByTestId('settings-default-model')).toBeVisible();
+    await page.getByTestId('settings-tab-sessions').click();
+    await expect(page.getByText('空闲超时', { exact: false })).toBeVisible();
+    await page.getByTestId('settings-tab-memory').click();
+    await expect(page.getByText('记忆后端')).toBeVisible();
+    await page.getByTestId('settings-tab-providers').click();
+    await waitReady(page, 'settings-providers');
+    await expect(page.getByTestId('providers-panel')).toBeVisible();
     await guards.assertClean('settings');
   });
 });

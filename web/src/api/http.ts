@@ -25,6 +25,31 @@ import {
   type CreateScheduleRequest,
   type RequestSecretRequest,
 } from './client';
+import type {
+  BotSseEvent,
+  ChatAccepted,
+  ModelsResponse,
+  ModelRef,
+  OAuthStart,
+  OAuthStatus,
+  ProviderInfo,
+  SessionDetail,
+  SessionSummary,
+  ThinkingLevel,
+} from './types';
+import {
+  botModelPayload,
+  normalizeBot,
+  normalizeSettings,
+  normalizeSseEvent,
+  normalizeStats,
+  toModelInfo,
+  toModelRef,
+  toPiModel,
+  toThinking,
+  normalizePiMessages,
+} from './normalize';
+import { readSseStream } from './sse';
 
 interface ApiResponse<T> {
   success: boolean;
@@ -120,6 +145,20 @@ function normalizeSecret(raw: Record<string, unknown>): Secret {
   };
 }
 
+function normalizeSessionSummary(raw: SessionSummary | undefined): SessionSummary {
+  const rec = (raw && typeof raw === 'object' ? raw : {}) as SessionSummary;
+  return {
+    id: String(rec.id ?? ''),
+    name: rec.name,
+    createdAt: String(rec.createdAt ?? ''),
+    updatedAt: String(rec.updatedAt ?? ''),
+    messageCount: Number(rec.messageCount ?? 0),
+    model: toModelRef(rec.model),
+    thinking: toThinking(rec.thinking),
+    isActive: Boolean(rec.isActive),
+  };
+}
+
 function normalizeModel(raw: Record<string, unknown>): ModelInfo {
   return {
     id: String(raw['id'] ?? raw['modelId'] ?? ''),
@@ -132,7 +171,13 @@ function normalizeModel(raw: Record<string, unknown>): ModelInfo {
 }
 
 export class HttpApiClient implements ApiClient {
+  private localListeners = new Set<(event: BotSseEvent) => void>();
+
   constructor(private baseUrl: string = '/api') {}
+
+  private emitLocal(event: BotSseEvent) {
+    for (const listener of this.localListeners) listener(event);
+  }
 
   private origin(): string {
     return this.baseUrl.replace(/\/api\/?$/, '');
@@ -182,29 +227,35 @@ export class HttpApiClient implements ApiClient {
   }
 
   async getBots(): Promise<Bot[]> {
-    const data = await this.request<{ bots: Bot[] }>('/api/bots');
-    return data.bots;
+    const data = await this.request<{ bots: unknown[] }>('/api/bots');
+    return (data.bots || []).map(normalizeBot);
   }
 
   async getBot(id: string): Promise<Bot> {
-    const data = await this.request<{ bot: Bot }>(`/api/bots/${id}`);
-    return data.bot;
+    const data = await this.request<{ bot: unknown }>(`/api/bots/${id}`);
+    return normalizeBot(data.bot);
   }
 
   async createBot(data: CreateBotRequest): Promise<Bot> {
-    const result = await this.request<{ bot: Bot }>('/api/bots', {
+    const result = await this.request<{ bot: unknown }>('/api/bots', {
       method: 'POST',
-      body: JSON.stringify(data),
+      body: JSON.stringify({
+        ...data,
+        model: data.model === undefined ? undefined : botModelPayload(data.model),
+      }),
     });
-    return result.bot;
+    return normalizeBot(result.bot);
   }
 
   async updateBot(id: string, data: UpdateBotRequest): Promise<Bot> {
-    const result = await this.request<{ bot: Bot }>(`/api/bots/${id}`, {
+    const result = await this.request<{ bot: unknown }>(`/api/bots/${id}`, {
       method: 'PATCH',
-      body: JSON.stringify(data),
+      body: JSON.stringify({
+        ...data,
+        model: data.model === undefined ? undefined : botModelPayload(data.model),
+      }),
     });
-    return result.bot;
+    return normalizeBot(result.bot);
   }
 
   async deleteBot(id: string): Promise<void> {
@@ -212,16 +263,22 @@ export class HttpApiClient implements ApiClient {
   }
 
   async getChatHistory(botId: string, limit = 50): Promise<Message[]> {
-    const data = await this.request<{ messages: Message[] }>(
+    const data = await this.request<{ messages?: unknown[] }>(
       `/api/bots/${botId}/history?limit=${limit}`
     );
-    return data.messages || [];
+    return normalizePiMessages(data.messages).map((m) => ({
+      id: m.id,
+      role: m.role,
+      content: m.content,
+      timestamp: m.timestamp ?? new Date().toISOString(),
+      thinking: m.thinking,
+      toolCalls: m.toolCalls,
+      error: m.error,
+    }));
   }
 
   async sendMessage(botId: string, data: SendMessageRequest): Promise<void> {
-    // 真实 daemon 在 POST /chat 上流式返回，发送由 streamChat 完成
-    void botId;
-    void data;
+    await this.sendChat(botId, data.content);
   }
 
   streamChat(
@@ -230,59 +287,42 @@ export class HttpApiClient implements ApiClient {
     content?: string
   ): () => void {
     const controller = new AbortController();
+    const emit = (event: BotSseEvent) => {
+      if (event.type === 'bot.text_delta') {
+        onEvent({ type: 'text_delta', content: event.delta ?? event.content ?? '' });
+      } else if (event.type === 'bot.message_start') {
+        onEvent({ type: 'message_start', messageId: event.messageId });
+      } else if (event.type === 'bot.turn_end' || event.type === 'bot.message_end') {
+        onEvent({ type: 'agent_settled', content: event.text ?? event.content });
+      } else if (event.type === 'bot.error') {
+        onEvent({ type: 'error', content: event.error ?? event.message ?? event.content });
+      } else if (event.type === 'bot.tool_start') {
+        onEvent({ type: 'tool_start', content: event.toolName });
+      } else if (event.type === 'bot.tool_end') {
+        onEvent({ type: 'tool_end', content: event.toolName });
+      }
+    };
 
     void (async () => {
       try {
-        const response = await fetch(`${this.baseUrl}/bots/${botId}/chat`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ message: content ?? '', content }),
-          signal: controller.signal,
-        });
-
-        if (!response.ok) {
-          const result = await response.json().catch(() => ({ error: response.statusText })) as { error?: string };
-          onEvent({ type: 'error', content: result.error || 'Request failed' });
+        const accepted = await this.postChat(botId, content ?? '', undefined, controller.signal);
+        if (accepted.mode === 'accepted') {
+          const stop = this.subscribeEvents((event) => {
+            if (event.botId && event.botId !== botId) return;
+            if (accepted.runId && event.runId && event.runId !== accepted.runId) return;
+            emit(event);
+            if (event.type === 'bot.turn_end' || event.type === 'bot.error') stop();
+          });
+          controller.signal.addEventListener('abort', stop);
           return;
         }
-
-        const contentType = response.headers.get('content-type') || '';
-        if (!response.body || !contentType.includes('text/event-stream')) {
+        if (accepted.mode === 'stream' && accepted.body) {
+          await readSseStream(accepted.body, (event) => {
+            this.emitLocal(event);
+            emit(event);
+          }, controller.signal);
           onEvent({ type: 'agent_settled' });
           return;
-        }
-
-        const reader = response.body.getReader();
-        const decoder = new TextDecoder();
-        let buffer = '';
-
-        while (true) {
-          const { done, value } = await reader.read();
-          if (done) break;
-          buffer += decoder.decode(value, { stream: true });
-          const chunks = buffer.split('\n\n');
-          buffer = chunks.pop() ?? '';
-          for (const chunk of chunks) {
-            const line = chunk.split('\n').find((l) => l.startsWith('data:'));
-            if (!line) continue;
-            try {
-              const payload = JSON.parse(line.slice(5).trim()) as {
-                type?: string;
-                delta?: string;
-                text?: string;
-                content?: string;
-              };
-              if (payload.type === 'delta' || payload.type === 'text_delta') {
-                onEvent({ type: 'text_delta', content: payload.delta ?? payload.content ?? '' });
-              } else if (payload.type === 'done' || payload.type === 'agent_settled') {
-                onEvent({ type: 'agent_settled', content: payload.text });
-              } else if (payload.type === 'error') {
-                onEvent({ type: 'error', content: payload.text ?? payload.content });
-              }
-            } catch {
-              // 忽略无法解析的 SSE 行
-            }
-          }
         }
         onEvent({ type: 'agent_settled' });
       } catch (error) {
@@ -293,6 +333,211 @@ export class HttpApiClient implements ApiClient {
     })();
 
     return () => controller.abort();
+  }
+
+  private async postChat(
+    botId: string,
+    message: string,
+    sessionId?: string,
+    signal?: AbortSignal
+  ): Promise<{ mode: 'accepted'; sessionId: string; runId: string } | { mode: 'stream'; body: ReadableStream<Uint8Array> | null } | { mode: 'ok' }> {
+    const response = await fetch(`${this.baseUrl}/bots/${botId}/chat`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ message, content: message, sessionId }),
+      signal,
+    });
+    const contentType = response.headers.get('content-type') || '';
+    if (!response.ok) {
+      const result = await response.json().catch(() => ({ error: response.statusText })) as { error?: string };
+      throw new ApiError(response.status, result.error || 'Request failed', result);
+    }
+    if (response.status === 202 || contentType.includes('application/json')) {
+      const result = await response.json() as { success?: boolean; data?: ChatAccepted; sessionId?: string; runId?: string; error?: string };
+      if (result.success === false) {
+        throw new ApiError(response.status, result.error || 'Request failed', result);
+      }
+      const data = result.data ?? result;
+      return {
+        mode: 'accepted',
+        sessionId: String(data.sessionId ?? sessionId ?? ''),
+        runId: String(data.runId ?? ''),
+      };
+    }
+    if (contentType.includes('text/event-stream')) {
+      return { mode: 'stream', body: response.body };
+    }
+    return { mode: 'ok' };
+  }
+
+  async sendChat(botId: string, message: string, sessionId?: string): Promise<ChatAccepted> {
+    const accepted = await this.postChat(botId, message, sessionId);
+    if (accepted.mode === 'accepted') {
+      return { sessionId: accepted.sessionId, runId: accepted.runId };
+    }
+    const runId = `legacy-${Date.now()}`;
+    if (accepted.mode === 'stream' && accepted.body) {
+      void readSseStream(accepted.body, (event) => {
+        this.emitLocal({ ...event, botId, sessionId: event.sessionId ?? sessionId, runId: event.runId ?? runId });
+      }).then(() => {
+        this.emitLocal({ type: 'bot.turn_end', botId, sessionId: sessionId ?? '', runId });
+      }).catch((error) => {
+        if ((error as Error).name !== 'AbortError') {
+          this.emitLocal({
+            type: 'bot.error',
+            botId,
+            sessionId: sessionId ?? '',
+            runId,
+            error: error instanceof Error ? error.message : 'Stream failed',
+          });
+        }
+      });
+    }
+    return { sessionId: sessionId ?? '', runId };
+  }
+
+  async abortChat(botId: string, sessionId?: string): Promise<void> {
+    await this.request(`/api/bots/${botId}/abort`, {
+      method: 'POST',
+      body: JSON.stringify({ sessionId }),
+    });
+  }
+
+  subscribeEvents(onEvent: (event: BotSseEvent) => void): () => void {
+    this.localListeners.add(onEvent);
+    const controller = new AbortController();
+    void (async () => {
+      try {
+        const response = await fetch(`${this.origin() || ''}/api/events`, {
+          headers: { Accept: 'text/event-stream' },
+          signal: controller.signal,
+        });
+        if (!response.ok || !response.body) return;
+        await readSseStream(response.body, (event) => {
+          const normalized = normalizeSseEvent(event);
+          if (normalized) onEvent(normalized);
+        }, controller.signal);
+      } catch (error) {
+        if ((error as Error).name !== 'AbortError') {
+          // 事件流断开不打断页面，由下一次发送重连
+        }
+      }
+    })();
+    return () => {
+      this.localListeners.delete(onEvent);
+      controller.abort();
+    };
+  }
+
+  async getModels(): Promise<ModelsResponse> {
+    try {
+      const data = await this.request<{
+        models?: unknown[];
+        defaultModel?: unknown;
+        defaultThinking?: unknown;
+      }>('/api/models');
+      return {
+        models: (data.models || []).map(toPiModel),
+        defaultModel: data.defaultModel && typeof data.defaultModel === 'object'
+          ? { provider: String((data.defaultModel as ModelRef).provider ?? ''), id: String((data.defaultModel as ModelRef).id ?? '') }
+          : null,
+        defaultThinking: toThinking(data.defaultThinking),
+      };
+    } catch (error) {
+      if (error instanceof ApiError && error.status === 404) {
+        const data = await this.request<{ models?: unknown[] }>('/api/system/models');
+        return {
+          models: (data.models || []).map(toPiModel),
+          defaultModel: null,
+          defaultThinking: null,
+        };
+      }
+      throw error;
+    }
+  }
+
+  async getProviders(): Promise<ProviderInfo[]> {
+    const data = await this.request<{ providers: ProviderInfo[] }>('/api/providers');
+    return data.providers || [];
+  }
+
+  async setProviderApiKey(id: string, apiKey: string): Promise<{ configured: true }> {
+    const data = await this.request<{ configured: true }>(`/api/providers/${encodeURIComponent(id)}/api-key`, {
+      method: 'PUT',
+      body: JSON.stringify({ apiKey }),
+    });
+    return { configured: Boolean(data.configured) as true };
+  }
+
+  async deleteProviderAuth(id: string): Promise<void> {
+    await this.request(`/api/providers/${encodeURIComponent(id)}/auth`, { method: 'DELETE' });
+  }
+
+  async startProviderOAuth(id: string): Promise<OAuthStart> {
+    const data = await this.request<OAuthStart>(`/api/providers/${encodeURIComponent(id)}/oauth/start`, {
+      method: 'POST',
+    });
+    return data;
+  }
+
+  async getProviderOAuthStatus(id: string, flowId: string): Promise<OAuthStatus> {
+    return this.request<OAuthStatus>(
+      `/api/providers/${encodeURIComponent(id)}/oauth/${encodeURIComponent(flowId)}`
+    );
+  }
+
+  async listSessions(botId: string): Promise<SessionSummary[]> {
+    const data = await this.request<{ sessions: SessionSummary[] }>(`/api/bots/${botId}/sessions`);
+    return (data.sessions || []).map(normalizeSessionSummary);
+  }
+
+  async createSession(botId: string, name?: string): Promise<SessionSummary> {
+    const data = await this.request<{ session: SessionSummary }>(`/api/bots/${botId}/sessions`, {
+      method: 'POST',
+      body: JSON.stringify({ name }),
+    });
+    return normalizeSessionSummary(data.session);
+  }
+
+  async getSession(botId: string, sessionId: string): Promise<SessionDetail> {
+    const data = await this.request<SessionDetail>(`/api/bots/${botId}/sessions/${sessionId}`);
+    return {
+      session: normalizeSessionSummary(data.session),
+      messages: normalizePiMessages(data.messages),
+      stats: normalizeStats(data.stats),
+    };
+  }
+
+  async updateSession(
+    botId: string,
+    sessionId: string,
+    patch: { name?: string; model?: ModelRef | null; thinking?: ThinkingLevel | null }
+  ): Promise<SessionSummary> {
+    const data = await this.request<{ session: SessionSummary }>(`/api/bots/${botId}/sessions/${sessionId}`, {
+      method: 'PATCH',
+      body: JSON.stringify(patch),
+    });
+    return normalizeSessionSummary(data.session);
+  }
+
+  async activateSession(botId: string, sessionId: string): Promise<SessionSummary> {
+    const data = await this.request<{ session: SessionSummary }>(
+      `/api/bots/${botId}/sessions/${sessionId}/activate`,
+      { method: 'POST' }
+    );
+    return normalizeSessionSummary(data.session);
+  }
+
+  async forkSession(botId: string, sessionId: string, entryId: string): Promise<SessionSummary> {
+    const data = await this.request<{ session: SessionSummary }>(
+      `/api/bots/${botId}/sessions/${sessionId}/fork`,
+      { method: 'POST', body: JSON.stringify({ entryId }) }
+    );
+    return normalizeSessionSummary(data.session);
+  }
+
+  async deleteSession(botId: string, sessionId: string): Promise<void> {
+    await this.request(`/api/bots/${botId}/sessions/${sessionId}`, { method: 'DELETE' });
   }
 
   async getGroups(): Promise<Group[]> {
@@ -507,20 +752,20 @@ export class HttpApiClient implements ApiClient {
   }
 
   async getAvailableModels(): Promise<ModelInfo[]> {
-    const data = await this.request<{ models: Record<string, unknown>[] }>('/api/system/models');
-    return (data.models || []).map((m) => normalizeModel(m));
+    const models = await this.getModels();
+    return models.models.map(toModelInfo);
   }
 
   async getSettings(): Promise<Settings> {
-    const data = await this.request<{ settings?: Settings }>('/api/settings');
-    return data.settings as Settings;
+    const data = await this.request<{ settings?: unknown }>('/api/settings');
+    return normalizeSettings(data.settings);
   }
 
   async updateSettings(data: Partial<Settings>): Promise<Settings> {
-    const result = await this.request<{ settings: Settings }>('/api/settings', {
+    const result = await this.request<{ settings: unknown }>('/api/settings', {
       method: 'PATCH',
       body: JSON.stringify(data),
     });
-    return result.settings;
+    return normalizeSettings(result.settings);
   }
 }

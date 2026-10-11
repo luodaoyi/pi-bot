@@ -1,14 +1,22 @@
 // Core types for pi-bot Web GUI
 
+import type {
+  ModelRef,
+  PiToolCall,
+  SessionStats,
+  ThinkingLevel,
+} from '@/api/types';
+
+export type { ModelRef, ThinkingLevel, SessionStats } from '@/api/types';
+
 export interface Bot {
   id: string;
   name: string;
   role: string;
   instructions: string;
-  model: {
-    provider: string;
-    modelId: string;
-  };
+  /** null = 跟随 pi 默认模型 */
+  model: ModelRef | null;
+  thinking?: ThinkingLevel | null;
   look?: {
     avatar?: string;
     color?: string;
@@ -25,8 +33,10 @@ export interface Message {
   timestamp: string;
   botId?: string;
   fromBot?: string;
-  toolCalls?: ToolCall[];
+  thinking?: string;
+  toolCalls?: PiToolCall[];
   streaming?: boolean;
+  error?: string;
 }
 
 export interface ToolCall {
@@ -95,27 +105,21 @@ export interface Secret {
   lastUsedAt?: string;
 }
 
+export interface UsageBucket {
+  inputTokens: number;
+  outputTokens: number;
+  cacheReadTokens?: number;
+  cacheWriteTokens?: number;
+  cost?: number;
+}
+
 export interface UsageStats {
   period: 'day' | 'week' | 'month';
   startDate: string;
   endDate: string;
-  byBot: Record<string, {
-    inputTokens: number;
-    outputTokens: number;
-    cacheReadTokens: number;
-    cacheWriteTokens: number;
-    cost?: number;
-  }>;
-  byModel: Record<string, {
-    inputTokens: number;
-    outputTokens: number;
-    cost?: number;
-  }>;
-  total: {
-    inputTokens: number;
-    outputTokens: number;
-    cost?: number;
-  };
+  byBot: Record<string, UsageBucket>;
+  byModel: Record<string, UsageBucket>;
+  total: UsageBucket;
 }
 
 export interface ModelInfo {
@@ -125,24 +129,54 @@ export interface ModelInfo {
   contextWindow: number;
   supportsVision?: boolean;
   supportsThinking?: boolean;
+  reasoning?: boolean;
+  input?: string[];
+  hasAuth?: boolean;
 }
 
 export interface Settings {
   language: 'zh-CN' | 'en-US';
   theme: 'light' | 'dark' | 'auto';
   memoryBackend: 'respire' | 'markdown' | 'off';
-  memoryReview: boolean;
+  memoryReview?: boolean;
   maxSessions: number;
+  idleTimeoutMinutes: number;
+  defaultModel: ModelRef | null;
+  defaultThinking: ThinkingLevel | null;
+  loadUserExtensions: boolean;
+  loadContextFiles: boolean;
+  timezone: string;
+  workdir: string;
 }
 
 export interface ChatSession {
   botId: string;
+  sessionId: string | null;
   messages: Message[];
   isStreaming: boolean;
+  runId: string | null;
+  stats: SessionStats;
 }
 
 export interface StreamEvent {
-  type: 'message_start' | 'text_delta' | 'text_end' | 'tool_start' | 'tool_end' | 'agent_settled' | 'error';
+  type:
+    | 'message_start'
+    | 'text_delta'
+    | 'text_end'
+    | 'tool_start'
+    | 'tool_end'
+    | 'agent_settled'
+    | 'error'
+    | 'bot.message_start'
+    | 'bot.text_delta'
+    | 'bot.thinking_delta'
+    | 'bot.tool_start'
+    | 'bot.tool_update'
+    | 'bot.tool_end'
+    | 'bot.message_end'
+    | 'bot.turn_end'
+    | 'bot.error'
+    | 'bot.stats';
   data?: unknown;
   messageId?: string;
   content?: string;
