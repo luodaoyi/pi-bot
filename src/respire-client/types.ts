@@ -83,6 +83,11 @@ export interface RecallDetail {
   score: number;
   content?: string;
   superseded_by?: string;
+  kind?: string;
+  importance?: string;
+  project?: string;
+  updated_at?: string;
+  created_at?: string;
 }
 
 export interface RecallResult {

@@ -60,6 +60,7 @@ export interface MemorySearchRequest {
   query?: string;
   scope?: 'bot' | 'team' | 'all';
   limit?: number;
+  mode?: 'fast' | 'quality';
 }
 
 export interface MemoryWriteRequest {

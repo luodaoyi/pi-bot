@@ -11,6 +11,8 @@ import {
   writePort,
   deletePort,
   isProcessRunning,
+  daemonVersionMatches,
+  collectStopPids,
 } from '../daemon-manager.js';
 
 describe('daemon-manager', () => {
@@ -87,5 +89,26 @@ describe('daemon-manager', () => {
   it('should return default port when port file does not exist', () => {
     const port = readPort();
     expect(port).toBe(8787);
+  });
+
+  it('detects daemon version mismatch', () => {
+    expect(daemonVersionMatches('0.1.0-beta.4', '0.1.0-beta.7')).toBe(false);
+    expect(daemonVersionMatches('0.1.0-beta.7', '0.1.0-beta.7')).toBe(true);
+    expect(daemonVersionMatches(undefined, '0.1.0-beta.7')).toBe(false);
+  });
+
+  it('collects force-stop PIDs from health, pid file, and port owner', () => {
+    expect(collectStopPids({
+      force: true,
+      filePid: 11,
+      healthPid: 22,
+      portPid: 33,
+    }).sort()).toEqual([11, 22, 33]);
+    expect(collectStopPids({
+      force: false,
+      filePid: 11,
+      healthPid: 22,
+      portPid: 33,
+    }).sort()).toEqual([11, 22]);
   });
 });

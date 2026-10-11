@@ -175,6 +175,7 @@ Options:
   --no-browser            Don't open browser (with 'open' command)
   -h, --help              Show help
   -v, --version           Show version
+  -f, --force             Force-stop any daemon on the port (with 'stop')
   --dev                   Development mode
 
 Examples:

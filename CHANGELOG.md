@@ -5,6 +5,28 @@ All notable changes to pi-agent-bot will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.0-beta.7] - 2026-10-11
+
+### Summary / 摘要
+
+**Real-machine Memory + daemon version repair.** On Windows with Respire 1.0.13-dev.4 running (3383 memories, `/api/memory/status` `available:true`) the Memory page stayed empty: `GET /api/memory/search` returned `listed.map is not a function` because `list` treated `envelope.details` (an array) as `{ entries }`, hitting `Array.prototype.entries`. Search `?q=` was ignored (`query` only). Recall `status:'skip'` / `details:null` was not treated as empty. `pi-bot open` reused a running beta.4 daemon and printed `Version: 0.1.0-beta.4`.
+
+**真机记忆页与守护进程版本修复。** Windows + Respire 1.0.13-dev.4（3383 条，status 已 available）时记忆页空白：`list` 把 `details` 数组误读成 `{entries}`，踩到 `Array.prototype.entries`。只认 `query` 不认 `q`。recall 无命中的 `skip`/`details:null` 未当空结果。`pi-bot open` 会继续使用已在跑的 beta.4 daemon。
+
+### Fixed / 修复
+
+- **`listed.map is not a function`:** parse `envelope.details` as the list entry array (`id,title,content,kind,importance,project,updated_at,...`). Never read `.entries` on an array.
+- **Search param:** accept both `q` and `query` on `GET /api/memory/search` and `POST /api/memory/recall`. GUI sends `query`.
+- **Recall skip / shapes:** `status:'skip'` + `details:null` + `summary.count=0` is an empty list (not an error). Titles hits `{id,title,score,superseded_by}` and full hits `{score,entry:{...list fields},ancestors,superseded_by}` both normalize. `ok:false` / `error` / `errors[]` / `status:'fail'` surface as real errors.
+- **Daemon version mismatch:** `pi-bot open` / `ensureDaemon` compares `/health.version` to this package version. Mismatch or legacy (no pid) automatically `stop --force` then starts this version. `stop --force` kills via HTTP shutdown, health pid, pid file, and port owner.
+
+### Added / 新增
+
+- Memory page: no query → latest `list` (limit 50) showing title, kind, importance, project, `updated_at`; search box uses recall (optional quality mode); click opens `show <id>` markdown detail; status chips for `local_alive` and other numeric Respire status fields.
+- Unit tests on real envelope fixtures (list, recall skip, recall titles, recall full, show, `ok:false`).
+- Route tests + Playwright E2E (`e2e/memory-respire.spec.ts`) against a fake Respire RPC server that returns those shapes so the Memory page shows entries.
+- `RSRS_RPC_PORT` is honored by daemon config (E2E / isolation).
+
 ## [0.1.0-beta.6] - 2026-10-11
 
 ### Summary / 摘要

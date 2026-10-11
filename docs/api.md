@@ -186,8 +186,8 @@ Post a message to a group.
 All GET memory routes return `{ success: true, data: { available, reason?, ... } }`.
 When Respire is not running they still return **200** with `available: false` and `reason: "Respire not running"` — never an empty list that hides the error.
 
-- `GET /api/memory/status`
-- `GET /api/memory/search?query&scope&limit`
+- `GET /api/memory/status` — `{ available, counts, status, health }`. `counts` is numeric fields from Respire `status` (e.g. `local_alive`).
+- `GET /api/memory/search?q|query&scope&limit&mode=fast|quality` — no query lists latest (`cli.exec --json list`); with `q` or `query` runs recall. `status: skip` / `details: null` is an empty list, not an error.
 - `GET /api/memory/summary?scope&botId`
 - `GET /api/memory/:id`
 - `POST /api/memory/recall`

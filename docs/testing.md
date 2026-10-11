@@ -7,6 +7,8 @@ pi-agent-bot (CLI: `pi-bot`) uses [Vitest](https://vitest.dev/) for testing.
 ```bash
 npm test
 npm run test:e2e   # requires build + copy-web + Playwright Chromium
+# e2e/gui.spec.ts — Respire down
+# e2e/memory-respire.spec.ts — fake Respire RPC with real list/recall envelopes
 ```
 
 ## Test Coverage

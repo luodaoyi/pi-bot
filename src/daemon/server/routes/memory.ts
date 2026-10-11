@@ -5,7 +5,8 @@
 import type { Hono } from 'hono';
 import { RespireClient } from '#respire-client/index.js';
 import { RespireError } from '#respire-client/errors.js';
-import type { MemoryEntry as RespireMemoryEntry } from '#respire-client/types.js';
+import { extractStatusCounts } from '#respire-client/envelopes.js';
+import type { MemoryEntry as RespireMemoryEntry, RecallDetail } from '#respire-client/types.js';
 
 const RESPIRE_DOWN = 'Respire not running';
 
@@ -21,18 +22,42 @@ function isUnavailable(error: unknown): boolean {
   return /econnrefused|not running|unavailable|fetch failed/i.test(message);
 }
 
-function toGuiEntry(entry: RespireMemoryEntry, scope = 'team'): Record<string, unknown> {
+function toGuiEntry(
+  entry: Partial<RespireMemoryEntry> & { id: string },
+  extra: { scope?: string; score?: number } = {}
+): Record<string, unknown> {
+  const importance =
+    entry.importance === 'high' || entry.importance === 'important' ? 'important' : 'trivial';
   return {
     id: entry.id,
     content: entry.content ?? '',
     title: entry.title,
-    scope: entry.project ? 'team' : scope,
+    scope: entry.project ? 'team' : extra.scope ?? 'team',
     botId: undefined,
-    importance: entry.importance === 'high' || entry.importance === 'important' ? 'important' : 'trivial',
+    kind: entry.kind,
+    project: entry.project ?? '',
+    importance,
+    score: extra.score,
     createdAt: entry.created_at ?? new Date().toISOString(),
     updatedAt: entry.updated_at ?? entry.created_at ?? new Date().toISOString(),
     metadata: {},
   };
+}
+
+function recallToGui(item: RecallDetail, scope: string): Record<string, unknown> {
+  return toGuiEntry(
+    {
+      id: item.id,
+      title: item.title,
+      content: item.content ?? '',
+      kind: item.kind,
+      importance: item.importance,
+      project: item.project,
+      created_at: item.created_at,
+      updated_at: item.updated_at,
+    },
+    { scope, score: item.score }
+  );
 }
 
 function downPayload(extra: Record<string, unknown> = {}) {
@@ -76,6 +101,7 @@ export function setupMemoryRoutes(app: Hono, respirePort: number) {
     try {
       const health = await client.health();
       const status = await client.status().catch(() => ({}));
+      const counts = extractStatusCounts(status);
       return c.json({
         success: true,
         data: {
@@ -83,11 +109,12 @@ export function setupMemoryRoutes(app: Hono, respirePort: number) {
           reason: null,
           health,
           status,
+          counts,
         },
       });
     } catch (error) {
       if (isUnavailable(error)) {
-        return c.json(downPayload({ health: null, status: null }));
+        return c.json(downPayload({ health: null, status: null, counts: {} }));
       }
       return c.json(
         {
@@ -100,31 +127,31 @@ export function setupMemoryRoutes(app: Hono, respirePort: number) {
   });
 
   app.get('/api/memory/search', async (c) => {
-    const query = c.req.query('query') ?? '';
+    const query = (c.req.query('query') ?? c.req.query('q') ?? '').trim();
     const limit = c.req.query('limit') ? parseInt(c.req.query('limit')!, 10) : 50;
     const scope = c.req.query('scope') ?? 'all';
+    const mode = c.req.query('mode') === 'quality' ? 'quality' : 'fast';
+    const titles = c.req.query('titles') !== '0';
 
     return withRespire(
       c,
       async () => {
-        if (query.trim()) {
-          const result = await client.recall(query, { limit });
-          const entries = (result.details ?? []).map((item) =>
-            toGuiEntry(
-              {
-                id: String(item.id ?? item.title ?? query),
-                content: String(item.content ?? item.title ?? ''),
-                title: item.title,
-              } as RespireMemoryEntry,
-              scope
-            )
-          );
-          return { entries };
+        if (query) {
+          const result = await client.recall(query, { limit, mode, titles });
+          return {
+            entries: result.details.map((item) => recallToGui(item, scope)),
+            source: 'recall',
+            count: result.count,
+          };
         }
         const listed = await client.list({ limit });
-        return { entries: listed.map((entry) => toGuiEntry(entry, scope)) };
+        return {
+          entries: listed.map((entry) => toGuiEntry(entry, { scope })),
+          source: 'list',
+          count: listed.length,
+        };
       },
-      { entries: [] }
+      { entries: [], source: query ? 'recall' : 'list', count: 0 }
     );
   });
 
@@ -166,12 +193,26 @@ export function setupMemoryRoutes(app: Hono, respirePort: number) {
   });
 
   app.post('/api/memory/recall', async (c) => {
-    const body = (await c.req.json().catch(() => ({}))) as { query?: string; limit?: number };
+    const body = (await c.req.json().catch(() => ({}))) as {
+      query?: string;
+      q?: string;
+      limit?: number;
+      mode?: 'fast' | 'quality';
+      titles?: boolean;
+    };
+    const query = (body.query ?? body.q ?? '').trim();
     return withRespire(
       c,
       async () => {
-        const result = await client.recall(body.query ?? '', { limit: body.limit ?? 20 });
-        return { result, entries: result.details ?? [] };
+        const result = await client.recall(query, {
+          limit: body.limit ?? 20,
+          mode: body.mode === 'quality' ? 'quality' : 'fast',
+          titles: body.titles !== false,
+        });
+        return {
+          result,
+          entries: result.details.map((item) => recallToGui(item, 'all')),
+        };
       },
       { entries: [] }
     );
