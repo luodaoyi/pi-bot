@@ -13,9 +13,7 @@ export function setupBoot(
   onBootStateChange: (state: BootState) => void
 ) {
   // Load policy and configuration at session start
-  pi.on('session_start', async (event) => {
-    const ctx = event.ctx;
-
+  pi.on('session_start', async (event, ctx) => {
     try {
       // Check Respire health
       const health = await client.ensureUp();
@@ -37,7 +35,7 @@ export function setupBoot(
         try {
           policyText = await client.prompt();
         } catch (error) {
-          ctx.logger?.warn('Failed to load Respire policy:', error);
+          console.warn('Failed to load Respire policy:', error);
           mode = 'unavailable';
         }
       }
@@ -51,7 +49,7 @@ export function setupBoot(
 
       onBootStateChange(bootState);
 
-      ctx.logger?.info(`Respire boot complete: mode=${mode}, version=${health.bin}`);
+      console.info(`Respire boot complete: mode=${mode}, version=${health.bin}`);
     } catch (error) {
       const bootState: BootState = {
         policyText: '',
@@ -61,12 +59,12 @@ export function setupBoot(
 
       onBootStateChange(bootState);
 
-      ctx.logger?.warn('Respire unavailable:', error);
+      console.warn('Respire unavailable:', error);
     }
   });
 
   // Inject policy into system prompt before each agent start
-  pi.on('before_agent_start', (event) => {
+  pi.on('before_agent_start', (event, ctx) => {
     const bootState = onBootStateChange as unknown as () => BootState | null;
     const state = (bootState as () => BootState | null)();
 
@@ -78,13 +76,10 @@ export function setupBoot(
     if (state.mode === 'off') {
       event.systemPromptOptions.sections = {
         ...event.systemPromptOptions.sections,
-        respire_policy: {
-          content:
-            '# Memory Status\n\n' +
-            'Memory system is currently disabled (mode: off). ' +
-            'You may answer directly without checking or storing memories.\n',
-          order: 500,
-        },
+        respire_policy:
+          '# Memory Status\n\n' +
+          'Memory system is currently disabled (mode: off). ' +
+          'You may answer directly without checking or storing memories.\n',
       };
       return;
     }
@@ -92,15 +87,12 @@ export function setupBoot(
     if (state.mode === 'unavailable') {
       event.systemPromptOptions.sections = {
         ...event.systemPromptOptions.sections,
-        respire_policy: {
-          content:
-            '# Memory Status\n\n' +
-            'Respire memory system is unavailable. ' +
-            'When you attempt to recall, the tool will fail. ' +
-            'You must still call respire_recall as the first tool (per policy), ' +
-            'then report the failure in your response.\n',
-          order: 500,
-        },
+        respire_policy:
+          '# Memory Status\n\n' +
+          'Respire memory system is unavailable. ' +
+          'When you attempt to recall, the tool will fail. ' +
+          'You must still call respire_recall as the first tool (per policy), ' +
+          'then report the failure in your response.\n',
       };
       return;
     }
@@ -133,10 +125,7 @@ export function setupBoot(
 
     event.systemPromptOptions.sections = {
       ...event.systemPromptOptions.sections,
-      respire_policy: {
-        content,
-        order: 500,
-      },
+      respire_policy: content,
     };
   });
 }

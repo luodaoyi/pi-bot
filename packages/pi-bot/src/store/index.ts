@@ -183,12 +183,25 @@ export class Store extends EventEmitter {
   // Events (type-safe wrapper)
   // ============================================================================
 
-  override on(
-    event: '*',
-    listener: (event: SSEEvent) => void
-  ): this;
   override on(event: string | symbol, listener: (...args: unknown[]) => void): this {
     return super.on(event, listener);
+  }
+
+  onAny(listener: (event: SSEEvent) => void): () => void {
+    const wrapper = (eventName: string, ...args: unknown[]) => {
+      // Wildcard listener that gets all events
+      listener({ type: eventName, ...args[0] } as SSEEvent);
+    };
+    this.on('bot_created', wrapper);
+    this.on('bot_updated', wrapper);
+    this.on('bot_deleted', wrapper);
+    // Add more events as they're implemented
+
+    return () => {
+      this.off('bot_created', wrapper);
+      this.off('bot_updated', wrapper);
+      this.off('bot_deleted', wrapper);
+    };
   }
 }
 

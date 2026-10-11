@@ -20,7 +20,7 @@ export function setupSSE(app: Hono, store: Store) {
       });
 
       // Subscribe to store events
-      const unsubscribe = store.on('*', async (event: SSEEvent) => {
+      const unsubscribe = store.onAny(async (event: SSEEvent) => {
         await stream.writeSSE({
           event: event.type,
           data: JSON.stringify(event),

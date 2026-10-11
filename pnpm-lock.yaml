@@ -8,6 +8,15 @@ importers:
 
   .:
     devDependencies:
+      '@earendil-works/pi-ai':
+        specifier: ^1.1.0
+        version: 1.1.0(@aws-sdk/credential-provider-node@3.972.85)(@smithy/signature-v4@5.7.4)(undici@8.10.2)(ws@8.22.0)(zod@3.25.76)
+      '@earendil-works/pi-coding-agent':
+        specifier: ^1.1.0
+        version: 1.1.0(@aws-sdk/credential-provider-node@3.972.85)(@smithy/signature-v4@5.7.4)(ws@8.22.0)(zod@3.25.76)
+      '@sinclair/typebox':
+        specifier: ^0.34.52
+        version: 0.34.52
       '@types/node':
         specifier: ^22.10.2
         version: 22.20.5
@@ -41,6 +50,9 @@ importers:
 
   packages/pi-bot:
     dependencies:
+      '@hono/node-server':
+        specifier: ^2.1.4
+        version: 2.1.4(hono@4.13.13)
       '@pi-bot/respire-client':
         specifier: workspace:*
         version: link:../respire-client
@@ -585,6 +597,12 @@ packages:
     peerDependenciesMeta:
       '@modelcontextprotocol/sdk':
         optional: true
+
+  '@hono/node-server@2.1.4':
+    resolution: {integrity: sha512-2g1qeHl4BduwDn6L8nkAvDrPUWPMlkQ//a5NhP/zIyaXKMjZNRV+cG9Csu+BiJFf6+68pqzjf4Hi5sJGKHuS1g==}
+    engines: {node: '>=20'}
+    peerDependencies:
+      hono: ^4 || ^5.0.0-0
 
   '@humanfs/core@0.19.2':
     resolution: {integrity: sha512-UhXNm+CFMWcbChXywFwkmhqjs3PRCmcSa/hfBgLIb7oQ5HNb1wS0icWsGtSAUNgefHeI+eBrA8I1fxmbHsGdvA==}
@@ -2356,6 +2374,10 @@ snapshots:
       - bufferutil
       - supports-color
       - utf-8-validate
+
+  '@hono/node-server@2.1.4(hono@4.13.13)':
+    dependencies:
+      hono: 4.13.13
 
   '@humanfs/core@0.19.2':
     dependencies:

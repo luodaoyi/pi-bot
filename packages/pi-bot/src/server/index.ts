@@ -5,7 +5,7 @@
 import { Hono } from 'hono';
 import { cors } from 'hono/cors';
 import { logger } from 'hono/logger';
-import type { Config } from '../config.js';
+import { serve as nodeServe } from '@hono/node-server';
 import { loadConfig, expandHome } from '../config.js';
 import { createStore } from '../store/index.js';
 import { setupBotRoutes } from './routes/bots.js';
@@ -60,50 +60,18 @@ export async function serve(options: { configPath?: string; dev: boolean }) {
   // Bootstrap: Create Chief bot if first run
   await store.bootstrap();
 
-  // Start listening
+  // Start listening using @hono/node-server
   return new Promise<void>((resolve) => {
-    const server = Bun?.serve
-      ? Bun.serve({
-          fetch: app.fetch,
-          port,
-          hostname: host,
-        })
-      : null;
-
-    if (!server) {
-      // Fallback to Node.js http server
-      import('node:http').then((http) => {
-        http
-          .createServer((req, res) => {
-            app
-              .fetch(new Request(`http://${req.headers.host}${req.url}`, {
-                method: req.method,
-                headers: req.headers as HeadersInit,
-              }))
-              .then((response) => {
-                res.writeHead(response.status, Object.fromEntries(response.headers));
-                response.body?.pipeTo(
-                  new WritableStream({
-                    write(chunk) {
-                      res.write(chunk);
-                    },
-                    close() {
-                      res.end();
-                    },
-                  })
-                );
-              })
-              .catch((error) => {
-                console.error('Request error:', error);
-                res.writeHead(500);
-                res.end('Internal Server Error');
-              });
-          })
-          .listen(port, host ?? 'localhost', () => {
-            resolve();
-          });
-      });
-    }
+    nodeServe(
+      {
+        fetch: app.fetch,
+        port,
+        hostname: host || '127.0.0.1',
+      },
+      () => {
+        resolve();
+      }
+    );
 
     // Handle shutdown
     process.on('SIGINT', () => {

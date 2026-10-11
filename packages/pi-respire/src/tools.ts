@@ -69,7 +69,7 @@ export function registerMemoryTools(
 
         if (result.count === 0) {
           return {
-            content: `No memories found for query: "${input.query}"`,
+            content: [{ type: 'text' as const, text: `No memories found for query: "${input.query}"` }],
             details: { result },
           };
         }
@@ -78,19 +78,24 @@ export function registerMemoryTools(
           .map((d, i) => `${i + 1}. [${d.id.slice(0, 8)}] ${d.title} (score: ${d.score.toFixed(3)})`)
           .join('\n');
 
-        let content = `Found ${result.count} memories:\n\n${items}`;
+        let text = `Found ${result.count} memories:\n\n${items}`;
 
         if (result.related && result.related.length > 0) {
-          content += '\n\nRelated: ' + result.related.join(', ');
+          text += '\n\nRelated: ' + result.related.join(', ');
         }
 
         return {
-          content,
+          content: [{ type: 'text' as const, text }],
           details: { result },
         };
       } catch (error) {
         return {
-          content: `Recall failed: ${error instanceof Error ? error.message : String(error)}`,
+          content: [
+            {
+              type: 'text' as const,
+              text: `Recall failed: ${error instanceof Error ? error.message : String(error)}`,
+            },
+          ],
           isError: true,
         };
       }
@@ -115,23 +120,30 @@ export function registerMemoryTools(
 
         if (!entry) {
           return {
-            content: `Memory entry not found: ${input.id}`,
+            content: [{ type: 'text' as const, text: `Memory entry not found: ${input.id}` }],
           };
         }
 
+        const text =
+          `# ${entry.title || 'Untitled'}\n\n` +
+          `${entry.content}\n\n` +
+          `---\n` +
+          `ID: ${entry.id}\n` +
+          `Created: ${entry.created_at}\n` +
+          (entry.project ? `Project: ${entry.project}\n` : '');
+
         return {
-          content:
-            `# ${entry.title || 'Untitled'}\n\n` +
-            `${entry.content}\n\n` +
-            `---\n` +
-            `ID: ${entry.id}\n` +
-            `Created: ${entry.created_at}\n` +
-            (entry.project ? `Project: ${entry.project}\n` : ''),
+          content: [{ type: 'text' as const, text }],
           details: { entry },
         };
       } catch (error) {
         return {
-          content: `Failed to show entry: ${error instanceof Error ? error.message : String(error)}`,
+          content: [
+            {
+              type: 'text' as const,
+              text: `Failed to show entry: ${error instanceof Error ? error.message : String(error)}`,
+            },
+          ],
           isError: true,
         };
       }
@@ -172,7 +184,9 @@ export function registerMemoryTools(
     async execute(input) {
       if (!canWrite()) {
         return {
-          content: 'Memory system is in readonly or off mode. Cannot write.',
+          content: [
+            { type: 'text' as const, text: 'Memory system is in readonly or off mode. Cannot write.' },
+          ],
           isError: true,
         };
       }
@@ -190,28 +204,37 @@ export function registerMemoryTools(
             .map((c, i) => `${i + 1}. [${c.id.slice(0, 8)}] ${c.content.slice(0, 100)}...`)
             .join('\n');
 
+          const text =
+            `Similar memories already exist:\n\n${items}\n\n` +
+            `Not stored yet. Please decide:\n` +
+            `- Edit (modify your content and retry)\n` +
+            `- Merge (call remember with --merge-ids)\n` +
+            `- Attach (call remember with --parent)\n` +
+            `- Force (call remember with --force)`;
+
           return {
-            content:
-              `Similar memories already exist:\n\n${items}\n\n` +
-              `Not stored yet. Please decide:\n` +
-              `- Edit (modify your content and retry)\n` +
-              `- Merge (call remember with --merge-ids)\n` +
-              `- Attach (call remember with --parent)\n` +
-              `- Force (call remember with --force)`,
+            content: [{ type: 'text' as const, text }],
             details: { result },
           };
         }
 
+        const text =
+          `Stored memory: [${result.id?.slice(0, 8)}] ${input.title}\n\n` +
+          `This entry will appear in system prompt on next session. ` +
+          `It's immediately searchable via respire_recall.`;
+
         return {
-          content:
-            `Stored memory: [${result.id?.slice(0, 8)}] ${input.title}\n\n` +
-            `This entry will appear in system prompt on next session. ` +
-            `It's immediately searchable via respire_recall.`,
+          content: [{ type: 'text' as const, text }],
           details: { result },
         };
       } catch (error) {
         return {
-          content: `Failed to store: ${error instanceof Error ? error.message : String(error)}`,
+          content: [
+            {
+              type: 'text' as const,
+              text: `Failed to store: ${error instanceof Error ? error.message : String(error)}`,
+            },
+          ],
           isError: true,
         };
       }
@@ -236,14 +259,22 @@ export function registerMemoryTools(
           const success = await client.forget(input.id);
 
           return {
-            content: success
-              ? `Deleted memory: ${input.id}`
-              : `Failed to delete memory: ${input.id}`,
+            content: [
+              {
+                type: 'text' as const,
+                text: success ? `Deleted memory: ${input.id}` : `Failed to delete memory: ${input.id}`,
+              },
+            ],
             isError: !success,
           };
         } catch (error) {
           return {
-            content: `Failed to forget: ${error instanceof Error ? error.message : String(error)}`,
+            content: [
+              {
+                type: 'text' as const,
+                text: `Failed to forget: ${error instanceof Error ? error.message : String(error)}`,
+              },
+            ],
             isError: true,
           };
         }
@@ -271,7 +302,7 @@ export function registerMemoryTools(
         const entries = await client.list({ limit: input.limit ?? 20 });
 
         if (entries.length === 0) {
-          return { content: 'No memories found' };
+          return { content: [{ type: 'text' as const, text: 'No memories found' }] };
         }
 
         const items = entries
@@ -279,12 +310,17 @@ export function registerMemoryTools(
           .join('\n');
 
         return {
-          content: `Recent memories:\n\n${items}`,
+          content: [{ type: 'text' as const, text: `Recent memories:\n\n${items}` }],
           details: { entries },
         };
       } catch (error) {
         return {
-          content: `Failed to list: ${error instanceof Error ? error.message : String(error)}`,
+          content: [
+            {
+              type: 'text' as const,
+              text: `Failed to list: ${error instanceof Error ? error.message : String(error)}`,
+            },
+          ],
           isError: true,
         };
       }
@@ -311,7 +347,7 @@ export function registerMemoryTools(
         const entries = await client.diary(input.limit ?? 10);
 
         if (entries.length === 0) {
-          return { content: 'No diary entries found' };
+          return { content: [{ type: 'text' as const, text: 'No diary entries found' }] };
         }
 
         const items = entries
@@ -319,12 +355,17 @@ export function registerMemoryTools(
           .join('\n');
 
         return {
-          content: `Recent diary:\n\n${items}`,
+          content: [{ type: 'text' as const, text: `Recent diary:\n\n${items}` }],
           details: { entries },
         };
       } catch (error) {
         return {
-          content: `Failed to get diary: ${error instanceof Error ? error.message : String(error)}`,
+          content: [
+            {
+              type: 'text' as const,
+              text: `Failed to get diary: ${error instanceof Error ? error.message : String(error)}`,
+            },
+          ],
           isError: true,
         };
       }

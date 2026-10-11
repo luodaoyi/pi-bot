@@ -19,7 +19,7 @@ export function setupGate(
   ctx: GateContext
 ) {
   // Reset gate on new user input
-  pi.on('input', (event) => {
+  pi.on('input', (event, extCtx) => {
     if (event.source === 'interactive' || event.source === 'rpc') {
       ctx.setState({
         status: 'closed',
@@ -32,7 +32,7 @@ export function setupGate(
   });
 
   // Also reset at agent start
-  pi.on('before_agent_start', () => {
+  pi.on('before_agent_start', (event, extCtx) => {
     ctx.setState({
       status: 'closed',
       recallAttempted: false,
@@ -43,7 +43,7 @@ export function setupGate(
   });
 
   // Check tool calls
-  pi.on('tool_call', (event) => {
+  pi.on('tool_call', (event, extCtx) => {
     const bootState = ctx.getBootState();
     const gateState = ctx.getState();
 
@@ -52,7 +52,7 @@ export function setupGate(
       return;
     }
 
-    const isRecall = isRecallTool(event.tool.name, event.input);
+    const isRecall = isRecallTool(event.toolName, event.input);
 
     // First tool: must be recall
     if (gateState.status === 'closed' && !isRecall) {
@@ -63,26 +63,29 @@ export function setupGate(
       const reason =
         'Respire opening gate: The first tool call in this turn must be ' +
         '`respire_recall` (equivalent to `rsrs recall "<query>" --titles --json`). ' +
-        `Please call respire_recall first, then call \`${event.tool.name}\`.`;
+        `Please call respire_recall first, then call \`${event.toolName}\`.`;
 
       if (options.gateMode === 'block') {
         // Check if we've blocked too many times
         if (blockCount >= options.maxBlocks) {
-          event.ctx.logger?.error(
+          console.error(
             `Gate blocked ${blockCount} times, terminating to prevent loop`
           );
-          event.block = true;
-          event.reason = reason + '\n\n[Too many blocks, terminating turn]';
-          // TODO: How to actually terminate the turn in pi?
+          return {
+            block: true,
+            reason: reason + '\n\n[Too many blocks, terminating turn]',
+            terminate: true,
+          };
         } else {
-          event.block = true;
-          event.reason = reason;
+          return {
+            block: true,
+            reason,
+          };
         }
-        return;
       }
 
       if (options.gateMode === 'warn') {
-        event.ctx.logger?.warn(reason);
+        console.warn(reason);
       }
     }
 
@@ -91,7 +94,7 @@ export function setupGate(
       ctx.setState({
         status: 'pending',
         recallAttempted: true,
-        currentBatch: gateState.currentBatch.add(event.id ?? 'unknown'),
+        currentBatch: gateState.currentBatch.add(event.toolCallId ?? 'unknown'),
       });
     }
 
@@ -103,20 +106,22 @@ export function setupGate(
       gateState.currentBatch.size > 0
     ) {
       if (options.gateMode === 'block') {
-        event.block = true;
-        event.reason =
-          'Recall is still pending. Please wait for recall result before calling other tools.';
+        return {
+          block: true,
+          reason:
+            'Recall is still pending. Please wait for recall result before calling other tools.',
+        };
       }
     }
   });
 
   // Handle tool results
-  pi.on('tool_result', (event) => {
+  pi.on('tool_result', (event, extCtx) => {
     const gateState = ctx.getState();
 
     if (gateState.currentBatch.has(event.toolCallId ?? '')) {
       // This is a recall result
-      const failed = event.result.isError || false;
+      const failed = event.isError || false;
 
       ctx.setState({
         status: failed && options.errorGate !== 'off' ? 'error_gate' : 'open',
@@ -124,22 +129,15 @@ export function setupGate(
         currentBatch: new Set(),
       });
 
-      // Add failure note to result if needed
-      if (failed && event.result.content) {
-        const note =
-          '\n\n' +
-          '[Recall failed: ' +
-          (event.result.content.toString() || 'unknown error') +
-          ']\n' +
-          'Per Respire policy, you must report this failure in your response.';
-
-        event.result.content = (event.result.content.toString() || '') + note;
+      // Add failure note to result if needed (note: we can't modify event.result directly in tool_result hook)
+      if (failed) {
+        console.warn('Recall failed; agent should report this per policy');
       }
     }
   });
 
   // Check at turn end for missing recall
-  pi.on('agent_before_settle', (event) => {
+  pi.on('agent_before_settle', (event, extCtx) => {
     const bootState = ctx.getBootState();
     const gateState = ctx.getState();
 
@@ -156,15 +154,17 @@ export function setupGate(
         'Please recall now before responding.';
 
       if (options.settleRecall === 'continue') {
-        event.continue = true;
-        event.entries = [
-          {
-            role: 'user',
-            content: reminder,
-          },
-        ];
+        return {
+          continue: true,
+          entries: [
+            {
+              role: 'user' as const,
+              content: [{ type: 'text' as const, text: reminder }],
+            },
+          ],
+        };
       } else {
-        event.ctx.logger?.warn(reminder);
+        console.warn(reminder);
       }
     }
   });

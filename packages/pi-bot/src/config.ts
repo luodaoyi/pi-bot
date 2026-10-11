@@ -98,7 +98,7 @@ export async function loadConfig(configPath?: string): Promise<Config> {
   const path = configPath ?? join(homedir(), '.pi-bot', 'config.toml');
 
   try {
-    const content = await readFile(path, 'utf-8');
+    await readFile(path, 'utf-8');
     // TODO: Parse TOML (for now, just use defaults)
     // Would use a TOML parser like @iarna/toml
     console.log(`Loaded config from: ${path}`);

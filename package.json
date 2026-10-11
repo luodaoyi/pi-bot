@@ -25,6 +25,9 @@
     "prepare": "husky install || true"
   },
   "devDependencies": {
+    "@earendil-works/pi-ai": "^1.1.0",
+    "@earendil-works/pi-coding-agent": "^1.1.0",
+    "@sinclair/typebox": "^0.34.52",
     "@types/node": "^22.10.2",
     "@typescript-eslint/eslint-plugin": "^8.18.2",
     "@typescript-eslint/parser": "^8.18.2",
