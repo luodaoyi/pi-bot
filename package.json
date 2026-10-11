@@ -27,6 +27,7 @@
   "devDependencies": {
     "@earendil-works/pi-ai": "^1.1.0",
     "@earendil-works/pi-coding-agent": "^1.1.0",
+    "@eslint/js": "^10.0.1",
     "@sinclair/typebox": "^0.34.52",
     "@types/node": "^22.10.2",
     "@typescript-eslint/eslint-plugin": "^8.18.2",
@@ -37,6 +38,7 @@
     "prettier": "^3.4.2",
     "tsx": "^4.19.2",
     "typescript": "^5.7.2",
+    "typescript-eslint": "^8.71.1",
     "vitest": "^2.1.8"
   },
   "lint-staged": {

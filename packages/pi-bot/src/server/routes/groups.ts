@@ -1,26 +1,10 @@
 /**
  * Group chat routes
-<<<<<<< HEAD
- * TO BE IMPLEMENTED by parallel branch A
-=======
->>>>>>> 6dfc7cc (feat: implement session pool, team coordination, and group chat)
  */
 
 import type { Hono } from 'hono';
 import type { Config } from '../../config.js';
 import type { Store } from '../../store/index.js';
-<<<<<<< HEAD
-
-export function setupGroupRoutes(_app: Hono, _store: Store, _config: Config) {
-  // TODO: Implement group routes:
-  // - GET /api/groups (list groups)
-  // - POST /api/groups (create group)
-  // - GET /api/groups/:id (get group)
-  // - PATCH /api/groups/:id (update group)
-  // - DELETE /api/groups/:id (delete group)
-  // - POST /api/groups/:id/messages (post to group)
-  // - GET /api/groups/:id/messages (get group messages)
-=======
 import type { GroupManager } from '../../groups/index.js';
 import type {
   GroupCreateRequest,
@@ -157,5 +141,4 @@ export function setupGroupRoutes(
 
     return c.json({ success: true, data: { log } });
   });
->>>>>>> 6dfc7cc (feat: implement session pool, team coordination, and group chat)
 }

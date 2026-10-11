@@ -12,10 +12,6 @@ import {
   createAgentSession,
   SessionManager,
 } from '@earendil-works/pi-coding-agent';
-import type {
-  AgentSession,
-  CreateAgentSessionResult,
-} from '@earendil-works/pi-coding-agent';
 import type { BotConfig } from '@pi-bot/shared';
 import type {
   SessionPoolConfig,
@@ -23,8 +19,8 @@ import type {
   SessionInfo,
   SessionEvent,
   DeliveryOptions,
+  BotSession,
 } from './types.js';
-import type { BotSession, CreateAgentSessionResult } from './types.js';
 
 const MAX_HOPS = 6; // Prevent infinite message loops
 
@@ -77,11 +73,7 @@ export class SessionPool extends EventEmitter {
     // Create runtime and session
     const result = await createAgentSession({
       sessionManager,
-      model: bot.model.provider + '/' + bot.model.modelId,
-      // Load pi-bot extension to provide tools and memory
-      // Extension will be loaded from node_modules or local if installed
-      loadUserExtensions: false,
-      loadContextFiles: false,
+      model: `${bot.model.provider}/${bot.model.modelId}` as never,
     });
 
     const session = result.session;

@@ -4,6 +4,7 @@
  */
 
 import { randomUUID } from 'node:crypto';
+import { existsSync } from 'node:fs';
 import { spawn } from 'node:child_process';
 import { RespireError } from './errors.js';
 import type {
@@ -163,7 +164,7 @@ export class RespireClient {
         .map((p) => `${p}/rsrs`)
         .find((p) => {
           try {
-            return require('node:fs').existsSync(p);
+            return existsSync(p);
           } catch {
             return false;
           }

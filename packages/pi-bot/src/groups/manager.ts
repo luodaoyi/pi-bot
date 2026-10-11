@@ -290,7 +290,7 @@ export class GroupManager extends EventEmitter {
    */
   private formatGroupPrompt(
     group: GroupConfig,
-    botId: string,
+    _botId: string,
     context: GroupLogEntry[],
     speakers: string[]
   ): string {

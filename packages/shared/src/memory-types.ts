@@ -4,7 +4,8 @@
 
 export type MemoryBackend = 'respire' | 'markdown' | 'off';
 
-export type MemoryScope = 'own' | 'team' | string; // 'own', 'team', or bot ID
+// Memory scope: 'own' for bot-specific, 'team' for shared, or a specific bot ID
+export type MemoryScope = string;
 
 export interface MemoryEntry {
   id: string;

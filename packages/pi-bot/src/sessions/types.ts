@@ -58,5 +58,3 @@ export type SessionEvent =
   | { type: 'tool_call'; botId: string; tool: string; args: unknown }
   | { type: 'status_change'; botId: string; status: 'idle' | 'active' | 'settling' }
   | { type: 'error'; botId: string; error: string };
-
-export type { CreateAgentSessionResult };

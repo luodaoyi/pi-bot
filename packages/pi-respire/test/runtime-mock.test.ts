@@ -64,9 +64,11 @@ describe('RespireClient with mock HTTP runtime', () => {
         json: async () => ({
           v: 1,
           envelope: {
-            memory_off: false,
-            readonly: false,
-            project_base: '/workspace',
+            summary: {
+              memory_off: false,
+              readonly: false,
+              project_base: '/workspace',
+            },
           },
         }),
       });
@@ -87,8 +89,10 @@ describe('RespireClient with mock HTTP runtime', () => {
         json: async () => ({
           v: 1,
           envelope: {
-            memory_off: true,
-            readonly: false,
+            summary: {
+              memory_off: true,
+              readonly: false,
+            },
           },
         }),
       });
@@ -104,8 +108,10 @@ describe('RespireClient with mock HTTP runtime', () => {
         json: async () => ({
           v: 1,
           envelope: {
-            memory_off: false,
-            readonly: true,
+            summary: {
+              memory_off: false,
+              readonly: true,
+            },
           },
         }),
       });
@@ -127,18 +133,23 @@ describe('RespireClient with mock HTTP runtime', () => {
         ok: true,
         json: async () => ({
           v: 1,
-          envelope: mockResults,
+          envelope: {
+            summary: {
+              count: 2,
+              limit: 20,
+            },
+            details: mockResults,
+          },
         }),
       });
 
-      const results = await client.recall({
-        query: 'test query',
+      const result = await client.recall('test query', {
         titles: true,
-        json: true,
       });
 
-      expect(results).toHaveLength(2);
-      expect(results[0].title).toBe('memory-1');
+      expect(result.details).toHaveLength(2);
+      expect(result.details[0].title).toBe('memory-1');
+      expect(result.count).toBe(2);
       expect(mockFetch).toHaveBeenCalledWith(
         expect.stringContaining('/rpc'),
         expect.objectContaining({
@@ -152,16 +163,16 @@ describe('RespireClient with mock HTTP runtime', () => {
         ok: true,
         json: async () => ({
           v: 1,
-          envelope: [],
+          envelope: {
+            status: 'skip',
+          },
         }),
       });
 
-      const results = await client.recall({
-        query: 'nonexistent query',
-        json: true,
-      });
+      const result = await client.recall('nonexistent query');
 
-      expect(results).toHaveLength(0);
+      expect(result.count).toBe(0);
+      expect(result.details).toHaveLength(0);
     });
 
     it('should handle recall failure', async () => {
@@ -183,16 +194,20 @@ describe('RespireClient with mock HTTP runtime', () => {
         ok: true,
         json: async () => ({
           v: 1,
-          envelope: { id: 'mem-123' },
+          envelope: {
+            summary: {
+              id: 'mem-123',
+              message: 'Stored',
+            },
+          },
         }),
       });
 
-      const result = await client.remember({
-        content: 'New memory content',
+      const result = await client.remember('New memory content', {
         title: 'test-memory',
       });
 
-      expect(result).toBeDefined();
+      expect(result.id).toBe('mem-123');
       expect(mockFetch).toHaveBeenCalledWith(
         expect.stringContaining('/rpc'),
         expect.objectContaining({
@@ -263,7 +278,11 @@ describe('RespireClient with mock HTTP runtime', () => {
         ok: true,
         json: async () => ({
           v: 1,
-          envelope: mockMemories,
+          envelope: {
+            details: {
+              entries: mockMemories,
+            },
+          },
         }),
       });
 
@@ -275,16 +294,18 @@ describe('RespireClient with mock HTTP runtime', () => {
   });
 
   describe('Forget operations', () => {
-    it('should delete memory by title', async () => {
+    it('should delete memory by ID', async () => {
       mockFetch.mockResolvedValueOnce({
         ok: true,
         json: async () => ({
           v: 1,
-          envelope: true,
+          envelope: {
+            status: 'ok',
+          },
         }),
       });
 
-      const result = await client.forget({ title: 'mem-to-delete' });
+      const result = await client.forget('mem-123');
 
       expect(result).toBe(true);
       expect(mockFetch).toHaveBeenCalledWith(
