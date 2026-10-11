@@ -296,7 +296,15 @@ export class MockApiClient implements ApiClient {
     await delay(200);
     const group = this.groups.get(id);
     if (!group) throw new ApiError(404, 'Group not found');
-    const updated = { ...group, ...data };
+    const updated: Group = {
+      ...group,
+      ...data,
+      admin: data.admin === undefined
+        ? group.admin
+        : Array.isArray(data.admin)
+          ? data.admin
+          : [data.admin],
+    };
     this.groups.set(id, updated);
     return updated;
   }
