@@ -4,15 +4,28 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { createScheduler } from '../scheduler/index.js';
 import { createSecretsManager } from '../secrets/index.js';
-import { createUsageTracker } from '../usage/index.js';
 import { createFeatureExtensions } from './index.js';
 
-describe('Feature Extensions', () => {
+// Check if node:sqlite is available (requires Node >= 22.5)
+let sqliteAvailable = false;
+try {
+  await import('node:sqlite');
+  sqliteAvailable = true;
+} catch {
+  console.warn('node:sqlite not available, skipping Feature Extensions tests');
+}
+
+describe.skipIf(!sqliteAvailable)('Feature Extensions', () => {
   let tempDir: string;
+  let createUsageTracker: any;
   const botId = 'test-bot-123';
   const sessionId = 'test-session-456';
 
   beforeEach(async () => {
+    if (!createUsageTracker) {
+      const mod = await import('../usage/index.js');
+      createUsageTracker = mod.createUsageTracker;
+    }
     tempDir = await mkdtemp(join(tmpdir(), 'pi-bot-extensions-test-'));
   });
 

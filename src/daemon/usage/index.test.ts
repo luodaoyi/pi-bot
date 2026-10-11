@@ -2,12 +2,25 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { createUsageTracker } from './index.js';
 
-describe('UsageTracker', () => {
+// Check if node:sqlite is available (requires Node >= 22.5)
+let sqliteAvailable = false;
+try {
+  await import('node:sqlite');
+  sqliteAvailable = true;
+} catch {
+  console.warn('node:sqlite not available, skipping UsageTracker tests');
+}
+
+describe.skipIf(!sqliteAvailable)('UsageTracker', () => {
   let tempDir: string;
+  let createUsageTracker: any;
 
   beforeEach(async () => {
+    if (!createUsageTracker) {
+      const mod = await import('./index.js');
+      createUsageTracker = mod.createUsageTracker;
+    }
     tempDir = await mkdtemp(join(tmpdir(), 'pi-bot-usage-test-'));
   });
 

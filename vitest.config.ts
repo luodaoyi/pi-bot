@@ -8,6 +8,7 @@ export default defineConfig({
     environmentMatchGlobs: [
       ['web/src/**/*.test.ts', 'jsdom'],
     ],
+    pool: 'forks',
   },
   resolve: {
     alias: [
