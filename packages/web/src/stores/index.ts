@@ -96,7 +96,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       await api.sendMessage(botId, { content });
 
       // Start streaming response
-      let assistantMessage: Message = {
+      const assistantMessage: Message = {
         id: `msg-${Date.now()}-assistant`,
         role: 'assistant',
         content: '',
