@@ -71,4 +71,13 @@ export function setupSystemRoutes(app: Hono, store: Store, config: Config) {
       data: { models },
     });
   });
+
+  // Shutdown endpoint
+  app.post('/api/shutdown', (c) => {
+    setTimeout(() => {
+      process.exit(0);
+    }, 500);
+    
+    return c.json({ success: true, message: 'Shutting down...' });
+  });
 }

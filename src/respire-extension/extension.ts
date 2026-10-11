@@ -9,6 +9,7 @@ import { setupBoot } from './boot.js';
 import { setupGate } from './gate.js';
 import { registerMemoryTools } from './tools.js';
 import { registerCommands } from './commands.js';
+import { registerPiBotCommands } from './pi-bot-commands.js';
 
 const DEFAULT_OPTIONS: Required<RespireExtensionOptions> = {
   port: 15169,
@@ -62,5 +63,7 @@ export function createRespireExtension(options: RespireExtensionOptions = {}) {
       getBootState: () => bootState,
       getGateState: () => gateState,
     });
+
+    registerPiBotCommands(pi);
   };
 }

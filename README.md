@@ -47,13 +47,42 @@ See [pi documentation](https://github.com/earendil-works/pi) for details.
 
 ## Installation
 
-### Via npm
+There are two ways to run pi-bot:
+
+### Option 1: Global CLI (npm)
+
+Install globally and use the `pi-bot` CLI:
 
 ```bash
 npm install -g pi-agent-bot
-# Or install as a Pi package
+```
+
+Then start the daemon and open the web GUI:
+
+```bash
+pi-bot open
+# or manually start: pi-bot serve
+# check status: pi-bot status
+# stop daemon: pi-bot stop
+```
+
+### Option 2: Pi Extension (within Pi)
+
+Install as a Pi package and use the `/pi-bot` slash command:
+
+```bash
 pi install npm:pi-agent-bot
 ```
+
+Then inside a Pi session:
+
+```
+/pi-bot         # Opens web GUI (starts daemon if needed)
+/pi-bot status  # Check daemon status
+/pi-bot stop    # Stop the daemon
+```
+
+Both methods share the same daemon instance at `~/.pi-bot`, so you can use either entry point.
 
 ### From source
 
@@ -66,13 +95,7 @@ pnpm -r build
 
 ## Quick Start
 
-1. **Start the daemon:**
-
-```bash
-pi-bot serve
-```
-
-The server starts on `http://localhost:16888` by default.
+The daemon starts on `http://localhost:8787` by default. Use `pi-bot open` or `/pi-bot` to start the daemon and open the web GUI in your browser.
 
 2. **Create your first bot:**
 

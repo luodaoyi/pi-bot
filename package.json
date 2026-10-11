@@ -17,7 +17,6 @@
   },
   "pi": {
     "name": "pi-agent-bot",
-    "version": "0.1.0-beta.1",
     "description": "Multi-bot daemon with Pi SDK, Respire memory, team coordination, and web GUI for managing AI agents",
     "main": "./dist/index.js",
     "extensions": [

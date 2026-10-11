@@ -20,13 +20,12 @@ import { createUsageTracker } from '../usage/index.js';
 import { setupRoutes } from './routes/index.js';
 import { setupSSE } from './sse.js';
 
-export async function serve(options: { configPath?: string; dev: boolean }) {
+export async function serve(options: { configPath?: string; dev: boolean; port?: number }) {
   const config = await loadConfig(options.configPath);
 
   console.log('Starting pi-bot daemon...');
   console.log(`Home: ${expandHome(config.host.home)}`);
-  console.log(`Listen: ${config.host.listen}`);
-
+  
   const homeDir = expandHome(config.host.home);
 
   // Initialize store
@@ -132,8 +131,9 @@ export async function serve(options: { configPath?: string; dev: boolean }) {
 
   // Start server
   const [host, portStr] = config.host.listen.split(':');
-  const port = parseInt(portStr ?? '8787', 10);
+  const port = options.port ?? parseInt(portStr ?? '8787', 10);
 
+  console.log(`Listen: ${host}:${port}`);
   console.log(`\n🚀 pi-bot daemon running on http://${host}:${port}`);
   console.log(`   API: http://${host}:${port}/api`);
   console.log(`   Events: http://${host}:${port}/api/events`);
