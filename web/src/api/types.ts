@@ -96,6 +96,8 @@ export interface OAuthPollResponse {
 
 export type OAuthStatus = OAuthPollResponse;
 
+export type BotModel = ModelRef | null;
+
 export interface SessionSummary {
   id: string;
   name?: string;

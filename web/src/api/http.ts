@@ -46,6 +46,7 @@ import {
   toModelInfo,
   toPiModel,
   toThinking,
+  normalizePiMessages,
 } from './normalize';
 import { readSseStream } from './sse';
 
@@ -247,10 +248,18 @@ export class HttpApiClient implements ApiClient {
   }
 
   async getChatHistory(botId: string, limit = 50): Promise<Message[]> {
-    const data = await this.request<{ messages: Message[] }>(
+    const data = await this.request<{ messages?: unknown[] }>(
       `/api/bots/${botId}/history?limit=${limit}`
     );
-    return data.messages || [];
+    return normalizePiMessages(data.messages).map((m) => ({
+      id: m.id,
+      role: m.role,
+      content: m.content,
+      timestamp: m.timestamp ?? new Date().toISOString(),
+      thinking: m.thinking,
+      toolCalls: m.toolCalls,
+      error: m.error,
+    }));
   }
 
   async sendMessage(botId: string, data: SendMessageRequest): Promise<void> {
@@ -479,7 +488,7 @@ export class HttpApiClient implements ApiClient {
     const data = await this.request<SessionDetail>(`/api/bots/${botId}/sessions/${sessionId}`);
     return {
       session: data.session,
-      messages: data.messages || [],
+      messages: normalizePiMessages(data.messages),
       stats: normalizeStats(data.stats),
     };
   }

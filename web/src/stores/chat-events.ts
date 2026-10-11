@@ -1,7 +1,7 @@
 import type { Message } from '@/types';
 import type { BotSseEvent, PiToolCall, SessionStats } from '@/api/types';
 import { emptySessionStats } from '@/api/types';
-import { stringifyUnknown } from '@/api/normalize';
+import { asArgs, stringifyUnknown } from '@/api/normalize';
 
 export interface ChatRuntime {
   messages: Message[];
@@ -76,6 +76,21 @@ function upsertTool(tools: PiToolCall[] | undefined, patch: Partial<PiToolCall> 
 export function applyBotEvent(runtime: ChatRuntime, event: BotSseEvent): ChatRuntime {
   switch (event.type) {
     case 'bot.message_start': {
+      if (event.role === 'user') {
+        const text = String(event.text ?? event.content ?? '');
+        const id = event.messageId || `user-${event.runId ?? Date.now()}`;
+        if (runtime.messages.some((m) => m.id === id || (m.role === 'user' && m.content === text && text))) {
+          return { ...runtime, runId: event.runId ?? runtime.runId };
+        }
+        return {
+          ...runtime,
+          runId: event.runId ?? runtime.runId,
+          messages: [
+            ...runtime.messages,
+            { id, role: 'user', content: text, timestamp: new Date().toISOString() },
+          ],
+        };
+      }
       const started = upsertAssistant({ ...runtime, runId: event.runId ?? runtime.runId, isStreaming: true }, event.messageId);
       return started.next;
     }
@@ -96,7 +111,7 @@ export function applyBotEvent(runtime: ChatRuntime, event: BotSseEvent): ChatRun
         toolCalls: upsertTool(current.toolCalls, {
           id: event.toolCallId || `tool-${Date.now()}`,
           name: event.toolName,
-          arguments: event.args ?? {},
+          arguments: asArgs(event.args),
           status: 'running',
         }),
       });
@@ -108,7 +123,7 @@ export function applyBotEvent(runtime: ChatRuntime, event: BotSseEvent): ChatRun
         toolCalls: upsertTool(current.toolCalls, {
           id: event.toolCallId || current.toolCalls?.[current.toolCalls.length - 1]?.id || 'tool',
           name: event.toolName,
-          arguments: event.args,
+          arguments: event.args === undefined ? undefined : asArgs(event.args),
           liveOutput: stringifyUnknown(event.result) || undefined,
           status: 'running',
         }),
@@ -121,7 +136,7 @@ export function applyBotEvent(runtime: ChatRuntime, event: BotSseEvent): ChatRun
         toolCalls: upsertTool(current.toolCalls, {
           id: event.toolCallId || current.toolCalls?.[current.toolCalls.length - 1]?.id || 'tool',
           name: event.toolName,
-          arguments: event.args,
+          arguments: event.args === undefined ? undefined : asArgs(event.args),
           result: stringifyUnknown(event.result),
           status: event.isError ? 'error' : 'success',
           isError: Boolean(event.isError),

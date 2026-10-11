@@ -20,6 +20,36 @@ describe('applyBotEvent', () => {
     expect(state.isStreaming).toBe(false);
   });
 
+  it('keeps user message_start from becoming an assistant bubble', () => {
+    let state = createChatRuntime();
+    state = applyBotEvent(state, {
+      type: 'bot.message_start',
+      botId: 'b',
+      sessionId: 's',
+      runId: 'r',
+      role: 'user',
+      text: 'hello',
+    });
+    state = applyBotEvent(state, {
+      type: 'bot.message_start',
+      botId: 'b',
+      sessionId: 's',
+      runId: 'r',
+      role: 'assistant',
+    });
+    state = applyBotEvent(state, {
+      type: 'bot.text_delta',
+      botId: 'b',
+      sessionId: 's',
+      runId: 'r',
+      delta: 'hi',
+    });
+    expect(state.messages[0].role).toBe('user');
+    expect(state.messages[0].content).toBe('hello');
+    expect(state.messages[1].role).toBe('assistant');
+    expect(state.messages[1].content).toBe('hi');
+  });
+
   it('marks tool error and message error', () => {
     let state = createChatRuntime();
     state = applyBotEvent(state, { type: 'bot.tool_start', botId: 'b', sessionId: 's', runId: 'r', toolCallId: 't1', toolName: 'bash' });

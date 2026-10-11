@@ -170,6 +170,7 @@ export function normalizeSseEvent(raw: unknown): BotSseEvent | null {
     botId: rec.botId as string | undefined,
     sessionId: rec.sessionId as string | undefined,
     runId: rec.runId as string | undefined,
+    role: rec.role as string | undefined,
     toolCallId: rec.toolCallId as string | undefined,
     toolName: rec.toolName as string | undefined,
     args: rec.args as Record<string, unknown> | undefined,
@@ -182,6 +183,68 @@ export function normalizeSseEvent(raw: unknown): BotSseEvent | null {
     message: rec.message as string | undefined,
     stats: rec.stats ? normalizeStats(rec.stats) : undefined,
     messageId: rec.messageId as string | undefined,
+  };
+}
+
+export function asArgs(raw: unknown): Record<string, unknown> {
+  if (raw && typeof raw === 'object' && !Array.isArray(raw)) {
+    return raw as Record<string, unknown>;
+  }
+  return raw === undefined ? {} : { value: raw };
+}
+
+export function normalizePiMessages(raw: unknown): import('./types').PiMessage[] {
+  if (!Array.isArray(raw)) return [];
+  return raw.map((item, index) => normalizePiMessage(item, index));
+}
+
+function normalizePiMessage(raw: unknown, index: number): import('./types').PiMessage {
+  const rec = (raw && typeof raw === 'object' ? raw : {}) as Record<string, unknown>;
+  const role = rec.role === 'assistant' || rec.role === 'system' ? rec.role : 'user';
+  let content = '';
+  let thinking = '';
+  const toolCalls: import('./types').PiToolCall[] = [];
+
+  if (typeof rec.content === 'string') {
+    content = rec.content;
+  } else if (Array.isArray(rec.content)) {
+    for (const block of rec.content) {
+      if (!block || typeof block !== 'object') continue;
+      const b = block as Record<string, unknown>;
+      const type = String(b.type ?? '');
+      if (type === 'text' && typeof b.text === 'string') {
+        content += b.text;
+      } else if ((type === 'thinking' || type === 'reasoning') && typeof (b.thinking ?? b.text) === 'string') {
+        thinking += String(b.thinking ?? b.text);
+      } else if (type === 'toolCall' || type === 'tool_use' || type === 'functionCall') {
+        toolCalls.push({
+          id: String(b.id ?? b.toolCallId ?? `tool-${index}-${toolCalls.length}`),
+          name: String(b.name ?? b.toolName ?? 'tool'),
+          arguments: asArgs(b.arguments ?? b.args ?? b.input),
+          status: 'success',
+        });
+      } else if (type === 'toolResult' || type === 'tool_result') {
+        const id = String(b.toolCallId ?? b.id ?? '');
+        const existing = toolCalls.find((t) => t.id === id);
+        const result = stringifyUnknown(b.result ?? b.content ?? b.output);
+        if (existing) {
+          existing.result = result;
+          existing.isError = Boolean(b.isError);
+          existing.status = b.isError ? 'error' : 'success';
+        }
+      }
+    }
+  } else if (typeof rec.text === 'string') {
+    content = rec.text;
+  }
+
+  return {
+    id: String(rec.id ?? `msg-${index}`),
+    role,
+    content,
+    thinking: thinking || undefined,
+    toolCalls: toolCalls.length ? toolCalls : undefined,
+    timestamp: rec.timestamp ? String(rec.timestamp) : undefined,
   };
 }
 
