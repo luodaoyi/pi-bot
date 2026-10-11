@@ -407,19 +407,25 @@ export class HttpApiClient implements ApiClient {
     this.localListeners.add(onEvent);
     const controller = new AbortController();
     void (async () => {
-      try {
-        const response = await fetch(`${this.origin() || ''}/api/events`, {
-          headers: { Accept: 'text/event-stream' },
-          signal: controller.signal,
-        });
-        if (!response.ok || !response.body) return;
-        await readSseStream(response.body, (event) => {
-          const normalized = normalizeSseEvent(event);
-          if (normalized) onEvent(normalized);
-        }, controller.signal);
-      } catch (error) {
-        if ((error as Error).name !== 'AbortError') {
-          // 事件流断开不打断页面，由下一次发送重连
+      while (!controller.signal.aborted) {
+        try {
+          const response = await fetch(`${this.origin() || ''}/api/events`, {
+            headers: { Accept: 'text/event-stream' },
+            signal: controller.signal,
+          });
+          if (!response.ok || !response.body) {
+            await new Promise((r) => setTimeout(r, 500));
+            continue;
+          }
+          await readSseStream(response.body, (event) => {
+            const normalized = normalizeSseEvent(event);
+            if (normalized) onEvent(normalized);
+          }, controller.signal);
+        } catch (error) {
+          if ((error as Error).name === 'AbortError') break;
+        }
+        if (!controller.signal.aborted) {
+          await new Promise((r) => setTimeout(r, 500));
         }
       }
     })();

@@ -5,6 +5,37 @@ All notable changes to pi-agent-bot will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.0-beta.8] - 2026-10-11
+
+### Summary / 摘要
+
+**First complete pi-web-style GUI on the real daemon.** After A/B/C landed on `main` (`fb3847f`), the web app is a Chinese-first pi-web style surface: chat with SSE streaming, a session sidebar (list / new / rename / fork / delete), model picker, settings tabs 常规 / 模型 / 提供商 / 会话 / 记忆, and a usage page. Bot `model: null` follows the pi SDK default instead of a hardcoded Chief model. Windows daemon spawn uses `windowsHide` so opening the GUI no longer flashes a black console. Integration smoke (pack tarball → global install → `pi-bot open --no-browser` from another cwd with a fresh `HOME` + temp `PI_CODING_AGENT_DIR`) verified SDK model listing, provider API-key `hasAuth`, faux/test provider chat streaming text over SSE, session CRUD, usage tokens, and settings tab saves.
+
+**首个完整的 pi-web 风格 GUI，跑在真实 daemon 上。** A/B/C 合入 `main`（`fb3847f`）后，Web 是中文优先的 pi-web 风格界面：SSE 流式聊天、会话侧栏（列表/新建/重命名/分叉/删除）、模型选择器、设置页（常规/模型/提供商/会话/记忆）、用量页。Bot `model: null` 跟随 pi SDK 默认模型，不再写死 Chief。Windows 启动带 `windowsHide`，打开 GUI 不再弹出黑框控制台。集成冒烟（pack tgz → 临时 prefix 全局安装 → 另一 cwd + 全新 HOME + 临时 pi agent 目录执行 `pi-bot open --no-browser`）验证了 SDK 模型列表、写入假 API key 后 `hasAuth`、faux/test 提供商聊天 SSE 出字、会话 CRUD、用量 token、设置页保存。
+
+### Added / 新增
+
+- **C — models / providers / settings APIs** ([`6d2e30f`](https://github.com/luodaoyi/pi-bot/commit/6d2e30f7c8f5f1914a5b09b1819e826a0a044e91), [#10](https://github.com/luodaoyi/pi-bot/pull/10)): `GET /api/models` (+ `/api/system/models` alias) lists the live pi SDK catalog with `hasAuth`. Provider CRUD / API key / OAuth. `GET`/`PATCH /api/settings` persisted under `{PI_BOT_HOME}/settings.json`. Thinking includes `max`.
+- **A — sessions / chat / SSE** ([`f40b9ac`](https://github.com/luodaoyi/pi-bot/commit/f40b9acd17f78af28d85dff17a1a486e69b15673), [#11](https://github.com/luodaoyi/pi-bot/pull/11)): session list / create / get / rename / activate / fork / delete. `POST /api/bots/:id/chat` → 202 `{sessionId,runId}`; tokens stream on `GET /api/events` as `bot.*` events. Usage recorded from session-pool `usage` events.
+- **B — React GUI** ([`fb3847f`](https://github.com/luodaoyi/pi-bot/commit/fb3847fe8cd9c603f3675c96e38d9945716eab5a), [#12](https://github.com/luodaoyi/pi-bot/pull/12)): typed `web/src/api` client, pi-web-style chat, session sidebar, model picker (null = follow pi default), settings tabs, usage page, Playwright E2E against the real daemon. Production `createApiClient()` is always `HttpApiClient`.
+- **`PI_BOT_FAUX=1` / `PI_BOT_E2E_FAUX=1`:** registers the pi-ai faux provider (`faux/faux-1`) on the production daemon for integration smoke. Off by default.
+
+### Fixed / 修复
+
+- **Windows black console:** `windowsHide: true` on daemon spawn / `child_process` patch so `pi-bot open` does not flash a console window ([`6d2e30f`](https://github.com/luodaoyi/pi-bot/commit/6d2e30f7c8f5f1914a5b09b1819e826a0a044e91)).
+- **Model follows pi default:** `bot.model === null` is `follow-pi-default`, not a fallback to a stale Chief string ([`f40b9ac`](https://github.com/luodaoyi/pi-bot/commit/f40b9acd17f78af28d85dff17a1a486e69b15673)).
+- **SSE dropped every chat token:** Hono `streamSSE` closes the stream when the handler returns. `/api/events` now stays open until the client disconnects, and the GUI reconnects if the stream drops. Without this, `POST /chat` 202 succeeded and the session file had `hello from faux stream`, but the chat pane never showed assistant text.
+- **Usage page hid today's tokens:** `GET /api/usage/stats?period=week` used `endDate=YYYY-MM-DD`. ISO timestamps (`2026-10-11T16:19:38Z`) compare greater than `2026-10-11`, so the same-day turn (1439 in / 9 out) vanished from the GUI. Date-only bounds now expand to `T00:00:00.000Z` … `T23:59:59.999Z`.
+- **Fork `entryId: 'head'|'latest'`:** GUI fork sends `head`; `SessionManager.branch('head')` fails after a persisted file exists. Those sentinels now copy the session without calling `branch()`.
+
+### Commits since v0.1.0-beta.7
+
+- [`6d2e30f`](https://github.com/luodaoyi/pi-bot/commit/6d2e30f7c8f5f1914a5b09b1819e826a0a044e91) C: models, providers, settings APIs and Windows windowsHide ([#10](https://github.com/luodaoyi/pi-bot/pull/10))
+- [`f40b9ac`](https://github.com/luodaoyi/pi-bot/commit/f40b9acd17f78af28d85dff17a1a486e69b15673) A: rewrite session creation, streaming, and session APIs ([#11](https://github.com/luodaoyi/pi-bot/pull/11))
+- [`fb3847f`](https://github.com/luodaoyi/pi-bot/commit/fb3847fe8cd9c603f3675c96e38d9945716eab5a) B: frontend chat, sessions, models and settings against API contract ([#12](https://github.com/luodaoyi/pi-bot/pull/12))
+
+**Full Changelog**: https://github.com/luodaoyi/pi-bot/compare/v0.1.0-beta.7...v0.1.0-beta.8
+
 ## [0.1.0-beta.7] - 2026-10-11
 
 ### Summary / 摘要
@@ -285,6 +316,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+[0.1.0-beta.8]: https://github.com/luodaoyi/pi-bot/compare/v0.1.0-beta.7...v0.1.0-beta.8
+[0.1.0-beta.7]: https://github.com/luodaoyi/pi-bot/compare/v0.1.0-beta.6...v0.1.0-beta.7
 [0.1.0-beta.6]: https://github.com/luodaoyi/pi-bot/compare/v0.1.0-beta.5...v0.1.0-beta.6
 [0.1.0-beta.5]: https://github.com/luodaoyi/pi-bot/compare/v0.1.0-beta.4...v0.1.0-beta.5
 [0.1.0-beta.4]: https://github.com/luodaoyi/pi-bot/compare/v0.1.0-beta.3...v0.1.0-beta.4

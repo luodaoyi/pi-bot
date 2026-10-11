@@ -211,3 +211,49 @@ describe('models / providers / settings routes', () => {
     expect(cleared.data.settings.defaultModel).toBeNull();
   });
 });
+
+describe('PI_BOT_FAUX catalog hook', () => {
+  let app: Hono;
+  let tmp: string;
+  const previousFaux = process.env['PI_BOT_FAUX'];
+  const previousAgentDir = process.env['PI_CODING_AGENT_DIR'];
+  const previousHome = process.env['PI_BOT_HOME'];
+
+  beforeAll(async () => {
+    tmp = await mkdtemp(join(tmpdir(), 'pi-bot-faux-'));
+    const agentDir = join(tmp, 'pi-agent');
+    await mkdir(agentDir, { recursive: true });
+    process.env['PI_BOT_FAUX'] = '1';
+    process.env['PI_BOT_HOME'] = tmp;
+    process.env['PI_CODING_AGENT_DIR'] = agentDir;
+    invalidateModelRuntime();
+
+    const config = await loadConfig();
+    const store = await createStore(config);
+    const settingsStore = await createSettingsStore(tmp);
+    app = new Hono();
+    setupRoutes(app, store, config, { settingsStore, respirePort: 15169 });
+  });
+
+  afterAll(async () => {
+    invalidateModelRuntime();
+    if (previousFaux === undefined) delete process.env['PI_BOT_FAUX'];
+    else process.env['PI_BOT_FAUX'] = previousFaux;
+    if (previousAgentDir === undefined) delete process.env['PI_CODING_AGENT_DIR'];
+    else process.env['PI_CODING_AGENT_DIR'] = previousAgentDir;
+    if (previousHome === undefined) delete process.env['PI_BOT_HOME'];
+    else process.env['PI_BOT_HOME'] = previousHome;
+    if (tmp) await rm(tmp, { recursive: true, force: true });
+  });
+
+  it('lists faux-1 from the SDK hook when PI_BOT_FAUX=1', async () => {
+    const res = await app.request('/api/models');
+    const json = (await res.json()) as {
+      success: boolean;
+      data: { models: Array<{ provider: string; id: string }> };
+    };
+    expect(json.success).toBe(true);
+    expect(json.data.models.some((m) => m.provider === 'faux' && m.id === 'faux-1')).toBe(true);
+    expect(json.data.models.length).toBeGreaterThan(5);
+  });
+});

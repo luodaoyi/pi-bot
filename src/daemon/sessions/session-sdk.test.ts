@@ -180,6 +180,22 @@ describe('SessionPool with SDK faux provider', () => {
       10_000
     );
   });
+
+  it('forks a persisted session at entryId head without branching', { timeout: 20_000 }, async () => {
+    const bot = testBot();
+    faux.setResponses([
+      fauxAssistantMessage([fauxText('hello from faux')]),
+    ]);
+    const events: string[] = [];
+    pool.on('bot_event', (payload: { event: BotSseEvent }) => {
+      events.push(payload.event.type);
+    });
+    const accepted = await pool.startChat(bot, 'hi');
+    await viWaitFor(() => events.includes('bot.turn_end'), 15_000);
+    const forked = await pool.forkBotSession(bot, accepted.sessionId, 'head');
+    expect(forked.id).not.toBe(accepted.sessionId);
+    expect(forked.messageCount).toBeGreaterThan(0);
+  });
 });
 
 async function viWaitFor(predicate: () => boolean, timeoutMs: number): Promise<void> {
