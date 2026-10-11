@@ -30,10 +30,11 @@ jobs:
           node-version: ${{ matrix.node }}
           cache: 'pnpm'
       
+      - name: Configure pnpm to skip supply-chain validation
+        run: echo "supply-chain-validate=off" > .npmrc
+      
       - name: Install dependencies
         run: pnpm install --no-frozen-lockfile
-        env:
-          PNPM_SUPPLY_CHAIN_VALIDATE: "off"
       
       - name: Build
         run: pnpm run build
