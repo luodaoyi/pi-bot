@@ -55,6 +55,9 @@ jobs:
     
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          fetch-tags: true
       
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -122,16 +125,19 @@ jobs:
         run: npm pack
       
       - name: Check if version already exists on npm
+        id: npm_exists
         run: |
           VERSION="${{ steps.version.outputs.tag }}"
           if npm view pi-agent-bot@${VERSION} version 2>/dev/null; then
-            echo "::error::Version ${VERSION} already exists on npm. Cannot republish."
-            echo "::error::Please bump the version in package.json and create a new tag."
-            exit 1
+            echo "exists=true" >> $GITHUB_OUTPUT
+            echo "Version ${VERSION} already on npm; skipping republish"
+          else
+            echo "exists=false" >> $GITHUB_OUTPUT
+            echo "✓ Version ${VERSION} does not exist on npm, proceeding with publish"
           fi
-          echo "✓ Version ${VERSION} does not exist on npm, proceeding with publish"
       
       - name: Publish to npm with OIDC trusted publishing
+        if: steps.npm_exists.outputs.exists != 'true'
         run: |
           npm publish --provenance --access public --tag ${{ steps.npm_tag.outputs.tag }}
       
@@ -140,8 +146,8 @@ jobs:
           TAG_VERSION="${{ github.ref_name }}"
           echo "Generating release notes for $TAG_VERSION"
           
-          # Find previous tag
-          PREV_TAG=$(git describe --tags --abbrev=0 $TAG_VERSION^ 2>/dev/null || echo "")
+          # Find previous tag (needs fetch-depth: 0 + fetch-tags)
+          PREV_TAG=$(git describe --tags --abbrev=0 "$TAG_VERSION^" 2>/dev/null || echo "")
           
           if [ -z "$PREV_TAG" ]; then
             # First release, use first commit  
@@ -151,9 +157,16 @@ jobs:
             echo "Previous tag: $PREV_TAG"
           fi
           
-          # Extract CHANGELOG section for this version
+          # Extract CHANGELOG section for this version.
+          # Do not use awk range /start/,/## \[/ — the heading itself matches
+          # the end pattern, so the range is a single line and sed then
+          # deletes it (empty notes). Match the heading by exact prefix.
           VERSION_NUMBER="${TAG_VERSION#v}"
-          CHANGELOG_SECTION=$(awk "/## \[${VERSION_NUMBER}\]/,/## \[/" CHANGELOG.md | sed '/^## \[/d' | head -50)
+          CHANGELOG_SECTION=$(awk -v ver="$VERSION_NUMBER" '
+            index($0, "## [" ver "]") == 1 { p=1; next }
+            p && /^## \[/ { exit }
+            p
+          ' CHANGELOG.md)
           
           if [ -z "$CHANGELOG_SECTION" ]; then
             echo "ERROR: No CHANGELOG.md section found for version $VERSION_NUMBER"
@@ -211,10 +224,19 @@ jobs:
       
       - name: Create GitHub Release
         run: |
-          gh release create ${{ github.ref_name }} \
-            --title "${{ github.ref_name }} Release" \
-            --notes-file release-notes.md \
-            --prerelease \
-            pi-agent-bot-*.tgz
+          TAG="${{ github.ref_name }}"
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            gh release edit "$TAG" \
+              --title "$TAG Release" \
+              --notes-file release-notes.md \
+              --prerelease
+            gh release upload "$TAG" pi-agent-bot-*.tgz --clobber
+          else
+            gh release create "$TAG" \
+              --title "$TAG Release" \
+              --notes-file release-notes.md \
+              --prerelease \
+              pi-agent-bot-*.tgz
+          fi
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

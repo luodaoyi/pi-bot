@@ -29,6 +29,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Groups: `admin` accepts string or string[].
 - ErrorBoundary / PageErrorBoundary show error message and stack.
 - Health `version` is read from `package.json` instead of a hardcoded stale string.
+- **Release notes empty:** `release.yml` awk range `/## [ver]/,/## [/` matched only the heading (it also matches the end pattern), then `sed` deleted it. Extract by exact heading prefix; checkout with `fetch-depth: 0` + tags so the previous tag is visible. Skip republish when the version already exists; create-or-edit the GitHub Release.
 
 ### Added / 新增
 
