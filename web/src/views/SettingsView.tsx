@@ -259,7 +259,7 @@ export const SettingsView: React.FC = () => {
                 type="button"
                 onClick={() => void handleSave()}
                 disabled={saving}
-                className="w-full px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
+                className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
               >
                 {saving ? t('common.loading') : t('common.save')}
               </button>

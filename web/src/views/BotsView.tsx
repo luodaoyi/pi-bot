@@ -243,7 +243,7 @@ const BotFormModal: React.FC<{
             disabled={saving}
             className="px-4 py-2 bg-blue-600 text-white rounded-lg disabled:opacity-50"
           >
-            {saving ? t('common.loading') : t('common.save')}
+            {saving ? t('common.loading') : initial ? t('common.save') : t('common.create')}
           </button>
         </div>
       </div>

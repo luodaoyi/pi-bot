@@ -61,7 +61,7 @@ export const ChatView: React.FC<ChatViewProps> = ({
 
   return (
     <div data-state="ready" data-testid="chat-view" className="flex-1 flex flex-col h-full min-w-0">
-      <div className="p-3 border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 flex items-center gap-3">
+      <div className="p-3 border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 flex flex-wrap items-center gap-3">
         <div
           className="w-9 h-9 rounded-lg flex items-center justify-center text-xl shrink-0"
           style={{ backgroundColor: bot?.look?.color || '#3b82f6' }}
@@ -72,8 +72,8 @@ export const ChatView: React.FC<ChatViewProps> = ({
           <div className="font-medium text-gray-900 dark:text-white truncate">{bot?.name}</div>
           <div className="text-xs text-gray-400 truncate">{bot?.role}</div>
         </div>
-        <div className="ml-auto flex items-center gap-2 min-w-0">
-          <div className="w-52">
+        <div className="ml-auto flex flex-wrap items-center gap-2 min-w-[16rem]">
+          <div className="w-56">
             <ModelPicker
               models={models}
               value={session?.session.model ?? bot?.model ?? null}

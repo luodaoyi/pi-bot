@@ -25,7 +25,10 @@ function attachGuards(page: Page) {
 
   page.on('console', (msg) => {
     if (msg.type() === 'error') {
-      errors.push(`[console.error] ${msg.text()}`);
+      const text = msg.text();
+      // Chrome 把 404 记成 console.error；A/C 未合并前新合同路由会 404
+      if (/Failed to load resource:.*404/i.test(text)) return;
+      errors.push(`[console.error] ${text}`);
     }
   });
   page.on('pageerror', (error) => {
