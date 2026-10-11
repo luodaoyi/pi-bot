@@ -70,5 +70,10 @@
   },
   "engines": {
     "node": ">=22.19.0"
+  },
+  "pnpm": {
+    "overrides": {
+      "rollup": "4.63.3"
+    }
   }
 }
