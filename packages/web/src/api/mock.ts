@@ -76,7 +76,21 @@ export class MockApiClient implements ApiClient {
     };
     this.bots.set(writer.id, writer);
 
-    // Add sample messages
+    // Create code reviewer bot
+    const reviewer: Bot = {
+      id: 'bot-reviewer',
+      name: 'Reviewer',
+      role: 'Code Reviewer',
+      instructions: '你是代码审查专家，专注于代码质量、最佳实践和潜在问题。',
+      model: 'deepseek-chat',
+      avatar: '🔍',
+      color: '#f59e0b',
+      isMain: false,
+      createdAt: new Date(Date.now() - 4 * 24 * 60 * 60 * 1000).toISOString(),
+    };
+    this.bots.set(reviewer.id, reviewer);
+
+    // Add sample messages with inter-bot hops
     this.messages.set('bot-chief', [
       {
         id: 'msg-1',
@@ -90,6 +104,35 @@ export class MockApiClient implements ApiClient {
         content: '你好！我是 Chief，团队的主要协调者。我可以帮助你管理其他 Bot、创建群聊、安排任务等。有什么我可以帮助你的吗？',
         timestamp: new Date(Date.now() - 59 * 60 * 1000).toISOString(),
         botId: 'bot-chief',
+      },
+      {
+        id: 'msg-3',
+        role: 'user',
+        content: '帮我写一篇关于 AI 的文章。',
+        timestamp: new Date(Date.now() - 50 * 60 * 1000).toISOString(),
+      },
+      {
+        id: 'msg-4',
+        role: 'assistant',
+        content: '好的，我会让 Writer 来帮你完成这个任务。',
+        timestamp: new Date(Date.now() - 49 * 60 * 1000).toISOString(),
+        botId: 'bot-chief',
+        metadata: {
+          hops: [
+            {
+              botId: 'bot-writer',
+              content: '请写一篇关于 AI 的文章，要求专业且易懂。',
+              direction: 'outgoing' as const,
+              timestamp: new Date(Date.now() - 49 * 60 * 1000).toISOString(),
+            },
+            {
+              botId: 'bot-writer',
+              content: '好的，我会写一篇关于人工智能的综合文章。AI（人工智能）是计算机科学的一个重要分支，旨在创建能够模拟人类智能的系统...',
+              direction: 'incoming' as const,
+              timestamp: new Date(Date.now() - 48 * 60 * 1000).toISOString(),
+            },
+          ],
+        },
       },
     ]);
 
@@ -133,6 +176,81 @@ export class MockApiClient implements ApiClient {
       createdAt: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString(),
     };
     this.secrets.set(secret.name, secret);
+
+    // Add sample group with 3 bots
+    const devTeam: Group = {
+      id: 'group-dev-team',
+      name: '开发团队',
+      members: ['bot-chief', 'bot-writer', 'bot-reviewer'],
+      admin: 'bot-chief',
+      mode: 'everyone',
+      notice: '欢迎来到开发团队！我们一起协作完成项目。',
+      createdAt: new Date(Date.now() - 6 * 24 * 60 * 60 * 1000).toISOString(),
+    };
+    this.groups.set(devTeam.id, devTeam);
+
+    // Add sample group messages with @mentions and [PASS]
+    this.groupMessages.set('group-dev-team', [
+      {
+        id: 'gmsg-1',
+        role: 'assistant',
+        content: '大家好！让我们开始今天的代码审查会议。',
+        timestamp: new Date(Date.now() - 30 * 60 * 1000).toISOString(),
+        fromBot: 'bot-chief',
+      },
+      {
+        id: 'gmsg-2',
+        role: 'assistant',
+        content: '@Writer 请先介绍一下这次的文档更新内容。',
+        timestamp: new Date(Date.now() - 28 * 60 * 1000).toISOString(),
+        fromBot: 'bot-chief',
+      },
+      {
+        id: 'gmsg-3',
+        role: 'assistant',
+        content: '好的！这次我更新了 API 文档，添加了更详细的示例代码和使用说明。主要改进包括：1) 新增快速入门指南，2) 完善错误处理示例，3) 添加最佳实践章节。',
+        timestamp: new Date(Date.now() - 26 * 60 * 1000).toISOString(),
+        fromBot: 'bot-writer',
+      },
+      {
+        id: 'gmsg-4',
+        role: 'assistant',
+        content: '文档质量很好！@Reviewer 你看一下有什么需要改进的地方吗？',
+        timestamp: new Date(Date.now() - 24 * 60 * 1000).toISOString(),
+        fromBot: 'bot-chief',
+      },
+      {
+        id: 'gmsg-5',
+        role: 'assistant',
+        content: '我看了一下，整体很不错。建议在错误处理部分增加一些边界情况的说明，比如网络超时、权限不足等场景。另外，示例代码可以添加更多注释。',
+        timestamp: new Date(Date.now() - 22 * 60 * 1000).toISOString(),
+        fromBot: 'bot-reviewer',
+      },
+      {
+        id: 'gmsg-6',
+        role: 'assistant',
+        content: '好的，我会补充这些内容。预计明天完成。',
+        timestamp: new Date(Date.now() - 20 * 60 * 1000).toISOString(),
+        fromBot: 'bot-writer',
+      },
+      {
+        id: 'gmsg-7',
+        role: 'assistant',
+        content: '[PASS]',
+        timestamp: new Date(Date.now() - 18 * 60 * 1000).toISOString(),
+        fromBot: 'bot-reviewer',
+        metadata: {
+          passed: true,
+        },
+      },
+      {
+        id: 'gmsg-8',
+        role: 'assistant',
+        content: '很好！那我们今天的会议就到这里。@Writer 明天记得更新，@Reviewer 到时候再帮忙复审一下。',
+        timestamp: new Date(Date.now() - 15 * 60 * 1000).toISOString(),
+        fromBot: 'bot-chief',
+      },
+    ]);
   }
 
   async ping(): Promise<{ status: 'ok'; version: string }> {

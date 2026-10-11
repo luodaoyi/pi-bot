@@ -90,7 +90,7 @@ export const TaskFormModal: React.FC<TaskFormModalProps> = ({ task, isOpen, onCl
       return false;
     }
     if (formData.scheduleType === 'weekly' && formData.days.length === 0) {
-      setError('Select at least one day');
+      setError(t('task.selectAtLeastOneDay'));
       return false;
     }
     return true;
@@ -183,7 +183,7 @@ export const TaskFormModal: React.FC<TaskFormModalProps> = ({ task, isOpen, onCl
               value={formData.name}
               onChange={(e) => setFormData({ ...formData, name: e.target.value })}
               className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
-              placeholder="Enter task name"
+              placeholder={t('task.enterTaskName')}
             />
           </div>
 
@@ -217,7 +217,7 @@ export const TaskFormModal: React.FC<TaskFormModalProps> = ({ task, isOpen, onCl
           {/* Target */}
           <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-              Select {formData.targetType} *
+              {t('task.selectTarget')} {formData.targetType === 'bot' ? t('task.targetBot') : t('task.targetGroup')} *
             </label>
             <select
               value={formData.targetId}
@@ -242,7 +242,7 @@ export const TaskFormModal: React.FC<TaskFormModalProps> = ({ task, isOpen, onCl
               onChange={(e) => setFormData({ ...formData, message: e.target.value })}
               rows={4}
               className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
-              placeholder="Message to send"
+              placeholder={t('task.messageToSend')}
             />
           </div>
 
@@ -267,7 +267,7 @@ export const TaskFormModal: React.FC<TaskFormModalProps> = ({ task, isOpen, onCl
           {formData.scheduleType !== 'interval' && (
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                Time
+                {t('task.time')}
               </label>
               <input
                 type="time"
@@ -282,7 +282,7 @@ export const TaskFormModal: React.FC<TaskFormModalProps> = ({ task, isOpen, onCl
           {formData.scheduleType === 'weekly' && (
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                Days *
+                {t('task.days')} *
               </label>
               <div className="flex gap-2">
                 {weekDays.map(({ value, label }) => (
@@ -307,7 +307,7 @@ export const TaskFormModal: React.FC<TaskFormModalProps> = ({ task, isOpen, onCl
           {formData.scheduleType === 'interval' && (
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                Interval (minutes)
+                {t('task.intervalMinutes')}
               </label>
               <input
                 type="number"

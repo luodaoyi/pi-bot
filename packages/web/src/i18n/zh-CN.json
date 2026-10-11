@@ -27,7 +27,11 @@
     "createdAt": "创建时间",
     "chat": "对话",
     "sending": "发送中...",
-    "streaming": "生成中..."
+    "streaming": "生成中...",
+    "noBots": "暂无机器人",
+    "enterBotName": "输入机器人名称",
+    "enterRole": "例如：内容创作者、开发者",
+    "describePurpose": "描述机器人的目的和行为"
   },
   "group": {
     "list": "群聊列表",
@@ -41,7 +45,14 @@
     "modeEveryone": "所有人",
     "modeAdmin": "仅管理员",
     "notice": "公告",
-    "post": "发送消息"
+    "post": "发送消息",
+    "noGroups": "暂无群聊",
+    "selectGroup": "选择一个群聊开始聊天",
+    "minMembers": "至少需要 2 名成员",
+    "adminMustBeMember": "管理员必须是成员之一",
+    "selectAdmin": "选择管理员",
+    "enterGroupName": "输入群聊名称",
+    "optionalNotice": "可选公告内容"
   },
   "memory": {
     "title": "记忆管理",
@@ -55,12 +66,20 @@
     "importanceImportant": "重要",
     "importanceTrivial": "琐碎",
     "content": "内容",
+    "contentLabel": "记忆内容",
     "title": "标题",
     "write": "写入记忆",
     "update": "更新记忆",
     "forget": "遗忘",
     "summary": "摘要",
-    "noResults": "未找到相关记忆"
+    "noResults": "未找到相关记忆",
+    "enterContent": "输入记忆内容（事实或偏好）",
+    "optionalTitle": "可选标题",
+    "parent": "父记忆",
+    "supersedes": "替换记忆",
+    "replaceExisting": "替换现有记忆",
+    "replaceHint": "如果提供，将替换匹配的现有记忆条目而不是添加新记忆",
+    "contentMaxLength": "内容不能超过 300 个字符"
   },
   "task": {
     "list": "定时任务",
@@ -80,7 +99,15 @@
     "enabled": "启用",
     "disabled": "禁用",
     "nextRun": "下次执行",
-    "lastRun": "上次执行"
+    "lastRun": "上次执行",
+    "noTasks": "暂无任务",
+    "enterTaskName": "输入任务名称",
+    "selectTarget": "选择",
+    "messageToSend": "要发送的消息",
+    "selectAtLeastOneDay": "请至少选择一天",
+    "time": "时间",
+    "days": "星期",
+    "intervalMinutes": "间隔（分钟）"
   },
   "secret": {
     "list": "密钥管理",
@@ -92,7 +119,11 @@
     "value": "值",
     "valuePlaceholder": "输入密钥值（不会显示）",
     "createdAt": "创建时间",
-    "lastUsedAt": "最后使用"
+    "lastUsedAt": "最后使用",
+    "noSecrets": "暂无密钥",
+    "nameFormat": "必须为大写下划线格式（例如：API_KEY、GITHUB_TOKEN）",
+    "describePurpose": "描述此密钥的用途",
+    "neverDisplayed": "⚠️ 密钥值保存后将不再显示。请妥善保管。"
   },
   "usage": {
     "title": "用量统计",
@@ -117,7 +148,15 @@
     "themeDark": "深色",
     "themeAuto": "自动",
     "respireStatus": "Respire 记忆状态",
-    "maxSessions": "最大会话数"
+    "maxSessions": "最大会话数",
+    "connected": "已连接",
+    "disconnected": "未连接",
+    "version": "版本",
+    "checking": "检查中...",
+    "statusUnknown": "状态未知",
+    "refreshStatus": "刷新状态",
+    "respireDescription": "pi-bot 使用单一全局 Respire 记忆后端。记忆在所有会话中持久保存。",
+    "maxSessionsHint": "内存中保持的最大并发聊天会话数"
   },
   "common": {
     "save": "保存",
@@ -132,6 +171,14 @@
     "confirm": "确认",
     "back": "返回",
     "send": "发送",
-    "refresh": "刷新"
+    "refresh": "刷新",
+    "noData": "暂无数据",
+    "required": "必填",
+    "optional": "可选",
+    "select": "选择",
+    "checking": "检查中...",
+    "unknown": "未知",
+    "min": "最少",
+    "max": "最多"
   }
 }

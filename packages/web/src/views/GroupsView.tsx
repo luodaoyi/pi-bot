@@ -83,7 +83,7 @@ export const GroupsView: React.FC = () => {
           {loading ? (
             <div className="p-4 text-center text-gray-500">{t('common.loading')}</div>
           ) : groups.length === 0 ? (
-            <div className="p-4 text-center text-gray-500">No groups</div>
+            <div className="p-4 text-center text-gray-500">{t('group.noGroups')}</div>
           ) : (
             groups.map((group) => (
               <div
@@ -147,7 +147,7 @@ export const GroupsView: React.FC = () => {
           />
         ) : (
           <div className="flex-1 flex items-center justify-center text-gray-500">
-            Select a group to chat
+            {t('group.selectGroup')}
           </div>
         )}
       </div>

@@ -69,15 +69,15 @@ export const GroupFormModal: React.FC<GroupFormModalProps> = ({ group, isOpen, o
       return false;
     }
     if (formData.members.length < 2) {
-      setError('At least 2 members required');
+      setError(t('group.minMembers'));
       return false;
     }
     if (!formData.admin) {
-      setError(t('group.admin') + ' is required');
+      setError(t('group.admin') + ' ' + t('common.required'));
       return false;
     }
     if (!formData.members.includes(formData.admin)) {
-      setError('Admin must be a member');
+      setError(t('group.adminMustBeMember'));
       return false;
     }
     return true;
@@ -145,14 +145,14 @@ export const GroupFormModal: React.FC<GroupFormModalProps> = ({ group, isOpen, o
               value={formData.name}
               onChange={(e) => setFormData({ ...formData, name: e.target.value })}
               className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
-              placeholder="Enter group name"
+              placeholder={t('group.enterGroupName')}
             />
           </div>
 
           {/* Members */}
           <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-              {t('group.members')} * (min 2)
+              {t('group.members')} * ({t('common.min')} 2)
             </label>
             <div className="space-y-2 max-h-60 overflow-y-auto border border-gray-300 dark:border-gray-600 rounded-lg p-3">
               {bots.map((bot) => (
@@ -196,7 +196,7 @@ export const GroupFormModal: React.FC<GroupFormModalProps> = ({ group, isOpen, o
               onChange={(e) => setFormData({ ...formData, admin: e.target.value })}
               className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
             >
-              <option value="">Select admin</option>
+              <option value="">{t('group.selectAdmin')}</option>
               {bots
                 .filter(bot => formData.members.includes(bot.id))
                 .map((bot) => (
@@ -244,7 +244,7 @@ export const GroupFormModal: React.FC<GroupFormModalProps> = ({ group, isOpen, o
               onChange={(e) => setFormData({ ...formData, notice: e.target.value })}
               rows={3}
               className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
-              placeholder="Optional group notice"
+              placeholder={t('group.optionalNotice')}
             />
           </div>
 

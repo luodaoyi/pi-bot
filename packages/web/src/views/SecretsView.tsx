@@ -59,7 +59,7 @@ export const SecretsView: React.FC = () => {
         {loading ? (
           <div className="text-center text-gray-500 py-8">{t('common.loading')}</div>
         ) : secrets.length === 0 ? (
-          <div className="text-center text-gray-500 py-8">No secrets</div>
+          <div className="text-center text-gray-500 py-8">{t('secret.noSecrets')}</div>
         ) : (
           <div className="space-y-4">
             {secrets.map((secret) => (

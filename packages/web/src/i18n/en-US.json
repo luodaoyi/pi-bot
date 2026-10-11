@@ -132,6 +132,14 @@
     "confirm": "Confirm",
     "back": "Back",
     "send": "Send",
-    "refresh": "Refresh"
+    "refresh": "Refresh",
+    "noData": "No data",
+    "required": "Required",
+    "optional": "Optional",
+    "select": "Select",
+    "checking": "Checking...",
+    "unknown": "Unknown",
+    "min": "Min",
+    "max": "Max"
   }
 }

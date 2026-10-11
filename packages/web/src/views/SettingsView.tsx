@@ -165,11 +165,11 @@ export const SettingsView: React.FC = () => {
                       ? 'text-green-800 dark:text-green-200'
                       : 'text-red-800 dark:text-red-200'
                   }`}>
-                    {respireStatus.connected ? 'Connected' : 'Disconnected'}
+                    {respireStatus.connected ? t('settings.connected') : t('settings.disconnected')}
                   </div>
                   {respireStatus.version && (
                     <div className="text-sm text-green-700 dark:text-green-300 mt-1">
-                      Version: {respireStatus.version}
+                      {t('settings.version')}: {respireStatus.version}
                     </div>
                   )}
                   {respireStatus.error && (
@@ -181,12 +181,12 @@ export const SettingsView: React.FC = () => {
               </div>
             ) : (
               <div className="text-sm text-gray-500">
-                {checkingRespire ? 'Checking...' : 'Status unknown'}
+                {checkingRespire ? t('settings.checking') : t('settings.statusUnknown')}
               </div>
             )}
 
             <p className="text-xs text-gray-500 dark:text-gray-400 mt-3">
-              pi-bot uses a single global Respire memory backend for all bots. Memory is persistent across sessions.
+              {t('settings.respireDescription')}
             </p>
           </div>
 
@@ -204,7 +204,7 @@ export const SettingsView: React.FC = () => {
               max="64"
             />
             <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
-              Maximum concurrent chat sessions to keep in memory
+              {t('settings.maxSessionsHint')}
             </p>
           </div>
 

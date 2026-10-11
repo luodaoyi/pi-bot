@@ -141,7 +141,7 @@ export const BotFormModal: React.FC<BotFormModalProps> = ({ bot, isOpen, onClose
               value={formData.name}
               onChange={(e) => setFormData({ ...formData, name: e.target.value })}
               className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
-              placeholder="Enter bot name"
+              placeholder={t('bot.enterBotName')}
             />
           </div>
 
@@ -155,7 +155,7 @@ export const BotFormModal: React.FC<BotFormModalProps> = ({ bot, isOpen, onClose
               value={formData.role}
               onChange={(e) => setFormData({ ...formData, role: e.target.value })}
               className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
-              placeholder="E.g., Content Creator, Developer"
+              placeholder={t('bot.enterRole')}
             />
           </div>
 
@@ -169,7 +169,7 @@ export const BotFormModal: React.FC<BotFormModalProps> = ({ bot, isOpen, onClose
               onChange={(e) => setFormData({ ...formData, instructions: e.target.value })}
               rows={4}
               className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
-              placeholder="Describe the bot's purpose and behavior"
+              placeholder={t('bot.describePurpose')}
             />
           </div>
 

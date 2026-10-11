@@ -22,9 +22,9 @@ export const MemoryFormModal: React.FC<MemoryFormModalProps> = ({ entry, isOpen,
   const [formData, setFormData] = useState({
     content: '',
     title: '',
-    scope: 'bot' as 'bot' | 'team',
     importance: 'important' as 'important' | 'trivial',
-    replace: '',
+    parent: '',
+    supersedes: '',
   });
 
   useEffect(() => {
@@ -33,17 +33,17 @@ export const MemoryFormModal: React.FC<MemoryFormModalProps> = ({ entry, isOpen,
         setFormData({
           content: entry.content,
           title: entry.title || '',
-          scope: entry.scope,
           importance: entry.importance,
-          replace: entry.content, // For update, use original content as replace target
+          parent: '',
+          supersedes: entry.content,
         });
       } else {
         setFormData({
           content: '',
           title: '',
-          scope: 'bot',
           importance: 'important',
-          replace: '',
+          parent: '',
+          supersedes: '',
         });
       }
       setError(null);
@@ -56,7 +56,7 @@ export const MemoryFormModal: React.FC<MemoryFormModalProps> = ({ entry, isOpen,
       return false;
     }
     if (formData.content.length > 300) {
-      setError('Content must be 300 characters or less');
+      setError(t('memory.contentMaxLength'));
       return false;
     }
     return true;
@@ -66,8 +66,8 @@ export const MemoryFormModal: React.FC<MemoryFormModalProps> = ({ entry, isOpen,
     e.preventDefault();
     if (!validate()) return;
 
-    if (!selectedBotId && formData.scope === 'bot') {
-      setError('No bot selected');
+    if (!selectedBotId) {
+      setError(t('bot.chat'));
       return;
     }
 
@@ -78,13 +78,12 @@ export const MemoryFormModal: React.FC<MemoryFormModalProps> = ({ entry, isOpen,
       if (entry) {
         await api.updateMemory(entry.id, formData.content);
       } else {
-        const botId = selectedBotId || 'bot-chief';
-        await api.writeMemory(botId, {
+        await api.writeMemory(selectedBotId, {
           content: formData.content,
           title: formData.title || undefined,
-          scope: formData.scope,
+          scope: 'team',
           importance: formData.importance,
-          replace: formData.replace || undefined,
+          replace: formData.supersedes || undefined,
         });
       }
       onSuccess();
@@ -120,7 +119,7 @@ export const MemoryFormModal: React.FC<MemoryFormModalProps> = ({ entry, isOpen,
           {/* Content */}
           <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-              {t('memory.content')} * (max 300 chars)
+              {t('memory.contentLabel')} * ({t('common.max')} 300)
             </label>
             <textarea
               value={formData.content}
@@ -128,10 +127,10 @@ export const MemoryFormModal: React.FC<MemoryFormModalProps> = ({ entry, isOpen,
               rows={4}
               maxLength={300}
               className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
-              placeholder="Enter memory content (fact or preference)"
+              placeholder={t('memory.enterContent')}
             />
             <p className="text-xs text-gray-500 mt-1">
-              {formData.content.length} / 300 characters
+              {formData.content.length} / 300
             </p>
           </div>
 
@@ -142,40 +141,13 @@ export const MemoryFormModal: React.FC<MemoryFormModalProps> = ({ entry, isOpen,
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                   {t('memory.title')}
                 </label>
-                <input
-                  type="text"
-                  value={formData.title}
-                  onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-                  className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
-                  placeholder="Optional title"
-                />
-              </div>
-
-              {/* Scope */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  {t('memory.scope')}
-                </label>
-                <div className="flex gap-4">
-                  <label className="flex items-center gap-2 cursor-pointer">
-                    <input
-                      type="radio"
-                      checked={formData.scope === 'bot'}
-                      onChange={() => setFormData({ ...formData, scope: 'bot' })}
-                      className="w-4 h-4 text-blue-600"
-                    />
-                    <span className="text-gray-900 dark:text-white">{t('memory.scopeBot')}</span>
-                  </label>
-                  <label className="flex items-center gap-2 cursor-pointer">
-                    <input
-                      type="radio"
-                      checked={formData.scope === 'team'}
-                      onChange={() => setFormData({ ...formData, scope: 'team' })}
-                      className="w-4 h-4 text-blue-600"
-                    />
-                    <span className="text-gray-900 dark:text-white">{t('memory.scopeTeam')}</span>
-                  </label>
-                </div>
+              <input
+                type="text"
+                value={formData.title}
+                onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+                className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
+                placeholder={t('memory.optionalTitle')}
+              />
               </div>
 
               {/* Importance */}
@@ -205,20 +177,34 @@ export const MemoryFormModal: React.FC<MemoryFormModalProps> = ({ entry, isOpen,
                 </div>
               </div>
 
-              {/* Replace */}
+              {/* Parent */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  Replace Existing
+                  {t('memory.parent')} ({t('common.optional')})
                 </label>
                 <input
                   type="text"
-                  value={formData.replace}
-                  onChange={(e) => setFormData({ ...formData, replace: e.target.value })}
+                  value={formData.parent}
+                  onChange={(e) => setFormData({ ...formData, parent: e.target.value })}
                   className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
-                  placeholder="Optional: text to replace"
+                  placeholder={t('memory.parent')}
+                />
+              </div>
+
+              {/* Supersedes */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  {t('memory.supersedes')} ({t('common.optional')})
+                </label>
+                <input
+                  type="text"
+                  value={formData.supersedes}
+                  onChange={(e) => setFormData({ ...formData, supersedes: e.target.value })}
+                  className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
+                  placeholder={t('memory.supersedes')}
                 />
                 <p className="text-xs text-gray-500 mt-1">
-                  If provided, replaces matching existing entry instead of adding new
+                  {t('memory.replaceHint')}
                 </p>
               </div>
             </>

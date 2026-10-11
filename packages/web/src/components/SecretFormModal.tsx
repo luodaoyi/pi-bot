@@ -40,7 +40,7 @@ export const SecretFormModal: React.FC<SecretFormModalProps> = ({ isOpen, onClos
       return false;
     }
     if (!/^[A-Z_][A-Z0-9_]*$/.test(formData.name)) {
-      setError('Name must be UPPERCASE_SNAKE_CASE');
+      setError(t('secret.nameFormat'));
       return false;
     }
     if (!formData.purpose.trim()) {
@@ -88,7 +88,7 @@ export const SecretFormModal: React.FC<SecretFormModalProps> = ({ isOpen, onClos
 
         <form onSubmit={handleSubmit} className="p-6 space-y-4">
           <div className="p-3 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg text-yellow-800 dark:text-yellow-200 text-sm">
-            ⚠️ Secret values are never displayed after saving. Store them securely.
+            {t('secret.neverDisplayed')}
           </div>
 
           {error && (
@@ -110,7 +110,7 @@ export const SecretFormModal: React.FC<SecretFormModalProps> = ({ isOpen, onClos
               placeholder="GITHUB_TOKEN"
             />
             <p className="text-xs text-gray-500 mt-1">
-              Must be UPPERCASE_SNAKE_CASE (e.g., API_KEY, GITHUB_TOKEN)
+              {t('secret.nameFormat')}
             </p>
           </div>
 
@@ -124,7 +124,7 @@ export const SecretFormModal: React.FC<SecretFormModalProps> = ({ isOpen, onClos
               value={formData.purpose}
               onChange={(e) => setFormData({ ...formData, purpose: e.target.value })}
               className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
-              placeholder="Describe what this secret is used for"
+              placeholder={t('secret.describePurpose')}
             />
           </div>
 
