@@ -80,6 +80,7 @@ async function main() {
           console.log('✗ Daemon is not running');
           process.exit(1);
         }
+        break;
       }
 
       case 'stop': {

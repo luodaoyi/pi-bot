@@ -164,6 +164,7 @@ export async function stopDaemon(): Promise<boolean> {
       return true;
     }
   } catch {
+    // Ignore fetch errors, fall through to process kill
   }
   
   if (isProcessRunning(pid)) {
