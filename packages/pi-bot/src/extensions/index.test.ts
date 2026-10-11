@@ -9,8 +9,8 @@ import { createFeatureExtensions } from './index.js';
 
 describe('Feature Extensions', () => {
   let tempDir: string;
-  let botId = 'test-bot-123';
-  let sessionId = 'test-session-456';
+  const botId = 'test-bot-123';
+  const sessionId = 'test-session-456';
 
   beforeEach(async () => {
     tempDir = await mkdtemp(join(tmpdir(), 'pi-bot-extensions-test-'));
@@ -137,9 +137,9 @@ describe('Feature Extensions', () => {
       dbPath: join(tempDir, 'usage.sqlite'),
     });
 
-    let requestReceived = false;
-    let requestName = '';
-    let requestPurpose = '';
+        let _requestReceived = false;
+        let _requestName = '';
+        let _requestPurpose = '';
 
     const features = createFeatureExtensions({
       scheduler,
@@ -149,10 +149,10 @@ describe('Feature Extensions', () => {
       getSessionId: () => sessionId,
       getCwd: () => tempDir,
       getSecretsSync: () => ({}),
-      onSecretRequest: (name, purpose, id) => {
-        requestReceived = true;
-        requestName = name;
-        requestPurpose = purpose;
+      onSecretRequest: (name, purpose, _id) => {
+        _requestReceived = true;
+        _requestName = name;
+        _requestPurpose = purpose;
       },
     });
 
