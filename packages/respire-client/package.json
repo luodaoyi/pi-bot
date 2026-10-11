@@ -21,9 +21,17 @@
     "lint": "eslint src --ext .ts",
     "lint:fix": "eslint src --ext .ts --fix"
   },
+  "files": [
+    "dist"
+  ],
   "keywords": ["respire", "rpc", "client"],
   "author": "pi-bot contributors",
   "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/luodaoyi/pi-bot.git",
+    "directory": "packages/respire-client"
+  },
   "devDependencies": {
     "@types/node": "^22.10.2",
     "typescript": "^5.7.2",

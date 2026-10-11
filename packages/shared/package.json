@@ -20,9 +20,17 @@
     "lint": "eslint src --ext .ts",
     "lint:fix": "eslint src --ext .ts --fix"
   },
+  "files": [
+    "dist"
+  ],
   "keywords": ["pi-bot", "types"],
   "author": "pi-bot contributors",
   "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/luodaoyi/pi-bot.git",
+    "directory": "packages/shared"
+  },
   "devDependencies": {
     "typescript": "^5.7.2"
   }
