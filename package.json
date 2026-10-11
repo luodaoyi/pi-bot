@@ -30,7 +30,7 @@
     "prepack": "npm run build && npm run build:web && npm run copy-web",
     "copy-web": "rm -rf dist/web && mkdir -p dist/web && cp -r web/dist/* dist/web/",
     "build": "tsc -b",
-    "build:web": "cd web && npm install && npm run build",
+    "build:web": "cd web && npm install --legacy-peer-deps && npm run build",
     "dev": "tsx watch src/daemon/cli.ts serve --dev",
     "start": "node dist/cli.js serve",
     "test": "vitest run",
