@@ -8,8 +8,7 @@ import { logger } from 'hono/logger';
 import { serve as nodeServe } from '@hono/node-server';
 import { loadConfig, expandHome } from '../config.js';
 import { createStore } from '../store/index.js';
-import { setupBotRoutes } from './routes/bots.js';
-import { setupSystemRoutes } from './routes/system.js';
+import { setupRoutes } from './routes/index.js';
 import { setupSSE } from './sse.js';
 
 export async function serve(options: { configPath?: string; dev: boolean }) {
@@ -38,9 +37,8 @@ export async function serve(options: { configPath?: string; dev: boolean }) {
     });
   });
 
-  // API routes
-  setupBotRoutes(app, store, config);
-  setupSystemRoutes(app, store, config);
+  // Mount all feature routes
+  setupRoutes(app, store, config);
 
   // SSE endpoint
   setupSSE(app, store);
