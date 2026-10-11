@@ -125,7 +125,7 @@ export async function serve(options: { configPath?: string; dev: boolean }) {
 
   // Serve static files (web UI)
   const __dirname = dirname(fileURLToPath(import.meta.url));
-  const webDistPath = join(__dirname, '../../web/dist');
+  const webDistPath = join(__dirname, '../web');
   
   app.use('/*', serveStatic({ root: webDistPath }));
   app.get('*', serveStatic({ path: join(webDistPath, 'index.html') }));
