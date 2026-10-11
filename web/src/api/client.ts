@@ -18,18 +18,29 @@ export interface CreateBotRequest {
   name: string;
   role: string;
   instructions: string;
-  model: string;
-  avatar?: string;
-  color?: string;
+  model: {
+    provider: string;
+    modelId: string;
+  };
+  look?: {
+    avatar?: string;
+    color?: string;
+  };
+  isMain?: boolean;
 }
 
 export interface UpdateBotRequest {
   name?: string;
   role?: string;
   instructions?: string;
-  model?: string;
-  avatar?: string;
-  color?: string;
+  model?: {
+    provider: string;
+    modelId: string;
+  };
+  look?: {
+    avatar?: string;
+    color?: string;
+  };
 }
 
 export interface SendMessageRequest {

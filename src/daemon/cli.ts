@@ -37,6 +37,7 @@ async function main() {
       dev: { type: 'boolean' },
       port: { type: 'string', short: 'p' },
       'no-browser': { type: 'boolean' },
+      force: { type: 'boolean', short: 'f' },
     },
     allowPositionals: true,
   });
@@ -110,21 +111,29 @@ async function main() {
             console.log(`  Home: ${health.home}`);
             console.log(`  URL: http://localhost:${status.port}`);
           }
-          process.exit(0);
+          // Wait for pending I/O before exit
+          await new Promise((resolve) => setTimeout(resolve, 100));
+          process.exitCode = 0;
         } else {
           console.log('✗ Daemon is not running');
-          process.exit(1);
+          // Wait for pending I/O before exit
+          await new Promise((resolve) => setTimeout(resolve, 100));
+          process.exitCode = 1;
         }
         break;
       }
 
       case 'stop': {
-        const stopped = await stopDaemon();
+        const forceStop = values['force'] === true;
+        const stopped = await stopDaemon(forceStop);
         if (stopped) {
           console.log('✓ Daemon stopped');
+          await new Promise((resolve) => setTimeout(resolve, 100));
+          process.exitCode = 0;
         } else {
           console.log('✗ Daemon was not running');
-          process.exit(1);
+          await new Promise((resolve) => setTimeout(resolve, 100));
+          process.exitCode = 1;
         }
         break;
       }

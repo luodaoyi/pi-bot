@@ -43,7 +43,10 @@ describe('MockApiClient', () => {
         name: 'Test Bot',
         role: 'Tester',
         instructions: 'Test instructions',
-        model: 'deepseek-chat',
+        model: {
+          provider: 'deepseek',
+          modelId: 'deepseek-chat',
+        },
       });
       expect(newBot.name).toBe('Test Bot');
       expect(newBot.isMain).toBe(false);

@@ -44,9 +44,9 @@ export const BotsView: React.FC = () => {
               <div className="flex items-center gap-3">
                 <div
                   className="w-10 h-10 rounded-lg flex items-center justify-center text-2xl"
-                  style={{ backgroundColor: bot.color || '#3b82f6' }}
+                  style={{ backgroundColor: bot.look?.color || '#3b82f6' }}
                 >
-                  {bot.avatar || '🤖'}
+                  {bot.look?.avatar || '🤖'}
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="font-medium text-gray-900 dark:text-white truncate">
@@ -116,13 +116,15 @@ const ChatArea: React.FC<{ botId: string }> = ({ botId }) => {
         <div className="flex items-center gap-3">
           <div
             className="w-10 h-10 rounded-lg flex items-center justify-center text-2xl"
-            style={{ backgroundColor: bot?.color || '#3b82f6' }}
+            style={{ backgroundColor: bot?.look?.color || '#3b82f6' }}
           >
-            {bot?.avatar || '🤖'}
+            {bot?.look?.avatar || '🤖'}
           </div>
           <div>
             <div className="font-medium text-gray-900 dark:text-white">{bot?.name}</div>
-            <div className="text-sm text-gray-500 dark:text-gray-400">{bot?.model}</div>
+            <div className="text-sm text-gray-500 dark:text-gray-400">
+              {bot?.model?.provider}/{bot?.model?.modelId}
+            </div>
           </div>
         </div>
       </div>

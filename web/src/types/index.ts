@@ -5,11 +5,17 @@ export interface Bot {
   name: string;
   role: string;
   instructions: string;
-  model: string;
-  avatar?: string;
-  color?: string;
+  model: {
+    provider: string;
+    modelId: string;
+  };
+  look?: {
+    avatar?: string;
+    color?: string;
+  };
   isMain: boolean;
-  createdAt: string;
+  created: string;
+  segments: string[];
 }
 
 export interface Message {

@@ -71,15 +71,30 @@ export class ErrorBoundary extends Component<Props, State> {
 
               {this.state.error && (
                 <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4">
-                  <p className="font-mono text-sm text-red-800 dark:text-red-200 mb-2">
-                    {this.state.error.toString()}
-                  </p>
-                  {this.state.errorInfo?.componentStack && (
-                    <details className="mt-2">
-                      <summary className="cursor-pointer text-red-700 dark:text-red-300 hover:text-red-900 dark:hover:text-red-100">
-                        查看堆栈跟踪
+                  <div className="mb-3">
+                    <h3 className="font-semibold text-red-800 dark:text-red-200 mb-1">错误信息 / Error Message:</h3>
+                    <p className="font-mono text-sm text-red-800 dark:text-red-200">
+                      {this.state.error.message || this.state.error.toString()}
+                    </p>
+                  </div>
+                  
+                  {this.state.error.stack && (
+                    <details className="mt-3">
+                      <summary className="cursor-pointer text-red-700 dark:text-red-300 hover:text-red-900 dark:hover:text-red-100 font-semibold">
+                        ▶ 查看错误堆栈 / Show Error Stack
                       </summary>
-                      <pre className="mt-2 text-xs text-red-700 dark:text-red-300 overflow-auto max-h-64">
+                      <pre className="mt-2 text-xs text-red-700 dark:text-red-300 overflow-auto max-h-64 bg-white dark:bg-gray-900 p-2 rounded">
+                        {this.state.error.stack}
+                      </pre>
+                    </details>
+                  )}
+                  
+                  {this.state.errorInfo?.componentStack && (
+                    <details className="mt-3">
+                      <summary className="cursor-pointer text-red-700 dark:text-red-300 hover:text-red-900 dark:hover:text-red-100 font-semibold">
+                        ▶ 查看组件堆栈 / Show Component Stack
+                      </summary>
+                      <pre className="mt-2 text-xs text-red-700 dark:text-red-300 overflow-auto max-h-64 bg-white dark:bg-gray-900 p-2 rounded">
                         {this.state.errorInfo.componentStack}
                       </pre>
                     </details>

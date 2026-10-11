@@ -5,6 +5,45 @@ All notable changes to pi-agent-bot will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.0-beta.5] - 2026-10-11
+
+### Summary / 摘要
+
+**Critical bug fixes for Windows daemon crashes and ErrorBoundary display.** Fixed daemon silent death on Windows by adding proper logging to `~/.pi-bot/logs/daemon.log`, uncaughtException/unhandledRejection handlers, and proper detached spawn with windowsHide. Fixed ErrorBoundary to show full error details (message, stack, component stack) in collapsible sections. Aligned API types between frontend and backend (created vs createdAt, model object structure). Added comprehensive Playwright E2E tests for all pages with real daemon.
+
+**Windows守护进程崩溃和ErrorBoundary显示的关键错误修复。** 通过添加到`~/.pi-bot/logs/daemon.log`的正确日志记录、uncaughtException/unhandledRejection处理程序以及带有windowsHide的正确分离spawn，修复了Windows上守护进程的静默死亡。修复了ErrorBoundary以在可折叠部分中显示完整的错误详细信息（消息、堆栈、组件堆栈）。对齐前端和后端之间的API类型（created vs createdAt，model对象结构）。添加了针对所有页面的综合Playwright E2E测试，使用真实守护进程。
+
+### Fixed / 修复
+
+- **Daemon silent death on Windows:** Daemon now writes stdout/stderr to `~/.pi-bot/logs/daemon.log` and logs uncaughtException/unhandledRejection events. Spawn daemon with `windowsHide: true` on Windows and `stdio` to log file descriptor for reliable background execution.
+  - Windows上的守护进程静默死亡：守护进程现在将stdout/stderr写入`~/.pi-bot/logs/daemon.log`并记录uncaughtException/unhandledRejection事件
+- **ErrorBoundary shows no details:** ErrorBoundary now displays error.message prominently, with collapsible sections for error.stack and component stack, plus reload/home buttons.
+  - ErrorBoundary不显示详细信息：ErrorBoundary现在突出显示error.message，带有error.stack和组件堆栈的可折叠部分，以及重新加载/主页按钮
+- **process.exit crash on Windows:** Replaced hard `process.exit()` with `process.exitCode` in status/open/stop commands, with 100ms drain delay to allow fetch/timers to close properly. Fixes Windows assertion failure `UV_HANDLE_CLOSING` exit code -1073740791.
+  - Windows上的process.exit崩溃：在status/open/stop命令中用`process.exitCode`替换硬`process.exit()`，带有100ms排空延迟以允许fetch/timers正确关闭
+- **Legacy daemon detection:** `pi-bot open` now throws error when legacy daemon (pre-beta.4 without pid in /health) is detected, requiring `pi-bot stop --force`. `stop --force` finds port-owning PID via netstat/Get-NetTCPConnection/lsof when /health lacks pid.
+  - 旧守护进程检测：当检测到旧守护进程（beta.4之前没有/health中的pid）时，`pi-bot open`现在抛出错误，需要`pi-bot stop --force`
+- Fix ESM `require()` error in writePid by using already-imported mkdirSync
+  - 通过使用已导入的mkdirSync修复writePid中的ESM `require()`错误
+- Align frontend/backend API types: Bot uses `created` (not `createdAt`), `model: {provider, modelId}` object (not string), `look: {avatar, color}` object, `segments: string[]` array
+  - 对齐前端/后端API类型：Bot使用`created`（不是`createdAt`），`model: {provider, modelId}`对象（不是字符串），`look: {avatar, color}`对象，`segments: string[]`数组
+- Add `--force` / `-f` flag to `pi-bot stop` for stopping legacy/foreign daemons
+  - 为`pi-bot stop`添加`--force` / `-f`标志以停止旧/外部守护进程
+
+### Added / 新增
+
+- Comprehensive Playwright E2E test suite (`e2e/gui.spec.ts`) that loads all pages (home, bots, chat, groups, memory, tasks, secrets, usage, settings) with real daemon API, fails on console errors, pageerror events, or ErrorBoundary text. Tests navigation flow.
+  - 综合Playwright E2E测试套件，加载所有页面，使用真实守护进程API，在控制台错误、页面错误事件或ErrorBoundary文本上失败
+- Daemon logging to `~/.pi-bot/logs/daemon.log` with timestamps for all stderr/stdout, uncaughtException, and unhandledRejection events
+  - 守护进程日志记录到`~/.pi-bot/logs/daemon.log`，包含所有stderr/stdout、uncaughtException和unhandledRejection事件的时间戳
+- `findPidByPort()` utility for Windows (Get-NetTCPConnection/netstat) and Unix (lsof) to find port-owning process when health endpoint doesn't report PID
+  - `findPidByPort()`实用程序，用于在健康端点不报告PID时查找端口拥有进程（Windows使用Get-NetTCPConnection/netstat，Unix使用lsof）
+
+### Known Issues / 已知问题
+
+- E2E tests may need `PI_BOT_HOME` environment variable override for isolated test runs
+  - E2E测试可能需要`PI_BOT_HOME`环境变量覆盖以进行隔离测试运行
+
 ## [0.1.0-beta.4] - 2026-10-11
 
 ### Summary / 摘要

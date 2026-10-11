@@ -8,7 +8,7 @@ import { logger } from 'hono/logger';
 import { serve as nodeServe } from '@hono/node-server';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { readFileSync, existsSync } from 'node:fs';
+import { readFileSync, existsSync, mkdirSync, appendFileSync } from 'node:fs';
 import { extname } from 'node:path';
 import { loadConfig, expandHome } from '../config.js';
 import { createStore } from '../store/index.js';
@@ -28,6 +28,35 @@ export async function serve(options: { configPath?: string; dev: boolean; port?:
   console.log(`Home: ${expandHome(config.host.home)}`);
   
   const homeDir = expandHome(config.host.home);
+  
+  // Setup error logging
+  const logFile = join(homeDir, 'logs', 'daemon.log');
+  const logDir = dirname(logFile);
+  if (!existsSync(logDir)) {
+    mkdirSync(logDir, { recursive: true });
+  }
+  
+  const logError = (prefix: string, error: any) => {
+    const timestamp = new Date().toISOString();
+    const message = `[${timestamp}] ${prefix}: ${error?.stack || error}\n`;
+    console.error(message);
+    try {
+      appendFileSync(logFile, message);
+    } catch {
+      // Ignore logging errors
+    }
+  };
+  
+  process.on('uncaughtException', (error) => {
+    logError('UNCAUGHT EXCEPTION', error);
+    process.exit(1);
+  });
+  
+  process.on('unhandledRejection', (reason) => {
+    logError('UNHANDLED REJECTION', reason);
+  });
+  
+  console.log(`Daemon logs: ${logFile}`);
 
   // Initialize store
   const store = await createStore(config);
@@ -105,7 +134,7 @@ export async function serve(options: { configPath?: string; dev: boolean; port?:
   app.get('/health', (c) => {
     return c.json({
       status: 'ok',
-      version: '0.1.0-beta.4',
+      version: '0.1.0-beta.5',
       pid: process.pid,
       home: homeDir,
       timestamp: new Date().toISOString(),

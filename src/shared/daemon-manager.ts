@@ -1,8 +1,8 @@
-import { existsSync, readFileSync, writeFileSync, unlinkSync } from 'fs';
+import { existsSync, readFileSync, writeFileSync, unlinkSync, mkdirSync } from 'fs';
 import { mkdir } from 'fs/promises';
 import { homedir, platform } from 'os';
 import { join, dirname } from 'path';
-import { spawn } from 'child_process';
+import { spawn, execSync } from 'child_process';
 import { fileURLToPath } from 'url';
 
 export interface DaemonStatus {
@@ -50,7 +50,7 @@ export function writePid(pid: number): void {
   const dataDir = getPiBotHome();
   const pidFile = getPidFilePath();
   if (!existsSync(dataDir)) {
-    require('fs').mkdirSync(dataDir, { recursive: true });
+    mkdirSync(dataDir, { recursive: true });
   }
   writeFileSync(pidFile, pid.toString(), 'utf-8');
 }
@@ -91,6 +91,32 @@ export function isProcessRunning(pid: number): boolean {
     return true;
   } catch (err: any) {
     return err.code === 'EPERM';
+  }
+}
+
+export function findPidByPort(port: number): number | null {
+  try {
+    const plat = platform();
+    let output: string;
+    
+    if (plat === 'win32') {
+      // Windows: Get-NetTCPConnection or netstat
+      try {
+        output = execSync(`powershell -Command "Get-NetTCPConnection -LocalPort ${port} -State Listen | Select-Object -ExpandProperty OwningProcess"`, { encoding: 'utf8' });
+      } catch {
+        output = execSync(`netstat -ano | findstr :${port}`, { encoding: 'utf8' });
+        const match = output.match(/LISTENING\s+(\d+)/);
+        return match ? parseInt(match[1], 10) : null;
+      }
+    } else {
+      // Unix: lsof
+      output = execSync(`lsof -ti:${port}`, { encoding: 'utf8' });
+    }
+    
+    const pid = parseInt(output.trim(), 10);
+    return isNaN(pid) ? null : pid;
+  } catch {
+    return null;
   }
 }
 
@@ -158,21 +184,40 @@ export async function startDaemon(port: number = DEFAULT_PORT): Promise<{ pid: n
   const cliPath = getCliPath();
   const piBotHome = getPiBotHome();
   
-  const child = spawn(process.execPath, [cliPath, 'serve', '--port', port.toString()], {
+  // Ensure logs directory exists
+  const logsDir = join(piBotHome, 'logs');
+  if (!existsSync(logsDir)) {
+    mkdirSync(logsDir, { recursive: true });
+  }
+  
+  const logFile = join(logsDir, 'daemon.log');
+  const { openSync } = await import('node:fs');
+  const logFd = openSync(logFile, 'a');
+  
+  const spawnOptions: any = {
     detached: true,
-    stdio: 'ignore',
+    stdio: ['ignore', logFd, logFd],
     cwd: piBotHome,
     env: { ...process.env },
-  });
+  };
+  
+  // Windows-specific options
+  if (platform() === 'win32') {
+    spawnOptions.windowsHide = true;
+  }
+  
+  const child = spawn(process.execPath, [cliPath, 'serve', '--port', port.toString()], spawnOptions);
   
   child.unref();
   
   const pid = child.pid!;
   
+  console.log(`Daemon started with PID ${pid}, logging to ${logFile}`);
+  
   return { pid, port };
 }
 
-export async function stopDaemon(_force: boolean = false): Promise<boolean> {
+export async function stopDaemon(force: boolean = false): Promise<boolean> {
   const pid = readPid();
   const port = readPort();
   
@@ -192,6 +237,28 @@ export async function stopDaemon(_force: boolean = false): Promise<boolean> {
       }
     } catch {
       // Ignore fetch errors, fall through
+    }
+    
+    // If health exists but no PID (legacy daemon), try to find PID by port
+    if (!health.pid && force) {
+      console.log(`Legacy daemon detected, finding PID by port ${port}...`);
+      const portPid = findPidByPort(port);
+      if (portPid && isProcessRunning(portPid)) {
+        console.log(`Found PID ${portPid} on port ${port}, stopping...`);
+        try {
+          process.kill(portPid, 'SIGTERM');
+          await new Promise((resolve) => setTimeout(resolve, 1000));
+          
+          if (isProcessRunning(portPid)) {
+            process.kill(portPid, 'SIGKILL');
+          }
+          
+          deletePid();
+          return true;
+        } catch {
+          console.error(`Failed to kill process ${portPid}`);
+        }
+      }
     }
   }
   
@@ -250,15 +317,24 @@ export async function ensureDaemon(port: number = DEFAULT_PORT): Promise<{ pid: 
   const health = await getHealthInfo(port);
   if (health) {
     const localPid = readPid();
+    
+    // Check if health has PID (beta.4+) or is legacy (beta.0-3)
+    if (!health.pid) {
+      console.error(`Error: Found legacy daemon on port ${port} (version: ${health.version || 'unknown'})`);
+      console.error(`This daemon does not report its PID (pre-beta.4).`);
+      console.error(`Run 'pi-bot stop --force' to stop it, then try again.`);
+      throw new Error(`Legacy daemon on port ${port} - use 'pi-bot stop --force'`);
+    }
+    
     if (localPid && health.pid === localPid) {
       // Same daemon, all good
       return { pid: health.pid, port, started: false };
     } else {
       // Different daemon (or no PID file)
-      console.warn(`Warning: Found existing daemon on port ${port} (PID: ${health.pid}, version: ${health.version})`);
-      console.warn(`Expected PID: ${localPid || 'none'}`);
-      console.warn(`Run 'pi-bot stop' to stop the existing daemon first`);
-      return { pid: health.pid, port, started: false };
+      console.error(`Error: Found existing daemon on port ${port} (PID: ${health.pid}, version: ${health.version})`);
+      console.error(`Expected PID: ${localPid || 'none'}`);
+      console.error(`Run 'pi-bot stop --force' to stop the existing daemon first`);
+      throw new Error(`Existing daemon on port ${port} - use 'pi-bot stop --force'`);
     }
   }
   

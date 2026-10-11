@@ -56,11 +56,17 @@ export class MockApiClient implements ApiClient {
       name: 'Chief',
       role: 'Main Bot',
       instructions: '你是团队的主要协调者，负责管理其他 Bot 和处理复杂任务。',
-      model: 'deepseek-chat',
-      avatar: '🤖',
-      color: '#3b82f6',
+      model: {
+        provider: 'deepseek',
+        modelId: 'deepseek-chat',
+      },
+      look: {
+        avatar: '🤖',
+        color: '#3b82f6',
+      },
       isMain: true,
-      createdAt: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString(),
+      created: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString(),
+      segments: [],
     };
     this.bots.set(chief.id, chief);
 
@@ -70,11 +76,17 @@ export class MockApiClient implements ApiClient {
       name: 'Writer',
       role: 'Content Creator',
       instructions: '你是专业的内容创作者，擅长撰写文章、文档和创意内容。',
-      model: 'deepseek-chat',
-      avatar: '✍️',
-      color: '#10b981',
+      model: {
+        provider: 'deepseek',
+        modelId: 'deepseek-chat',
+      },
+      look: {
+        avatar: '✍️',
+        color: '#10b981',
+      },
       isMain: false,
-      createdAt: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(),
+      created: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(),
+      segments: [],
     };
     this.bots.set(writer.id, writer);
 
@@ -158,9 +170,14 @@ export class MockApiClient implements ApiClient {
     await delay(300);
     const bot: Bot = {
       id: `bot-${Date.now()}`,
-      ...data,
-      isMain: false,
-      createdAt: new Date().toISOString(),
+      name: data.name,
+      role: data.role,
+      instructions: data.instructions,
+      model: data.model,
+      look: data.look,
+      isMain: data.isMain || false,
+      created: new Date().toISOString(),
+      segments: [],
     };
     this.bots.set(bot.id, bot);
     return bot;
