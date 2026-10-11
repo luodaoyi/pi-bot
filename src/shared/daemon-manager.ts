@@ -105,13 +105,13 @@ export async function isDaemonReachable(port: number = DEFAULT_PORT): Promise<bo
   }
 }
 
-export async function waitForDaemon(port: number = DEFAULT_PORT, timeoutMs: number = 10000): Promise<boolean> {
+export async function waitForDaemon(port: number = DEFAULT_PORT, timeoutMs: number = 30000): Promise<boolean> {
   const start = Date.now();
   while (Date.now() - start < timeoutMs) {
     if (await isDaemonReachable(port)) {
       return true;
     }
-    await new Promise((resolve) => setTimeout(resolve, 500));
+    await new Promise((resolve) => setTimeout(resolve, 1000));
   }
   return false;
 }
@@ -146,8 +146,6 @@ export async function startDaemon(port: number = DEFAULT_PORT): Promise<{ pid: n
   child.unref();
   
   const pid = child.pid!;
-  writePid(pid);
-  writePort(port);
   
   return { pid, port };
 }
@@ -226,10 +224,10 @@ export async function ensureDaemon(port: number = DEFAULT_PORT): Promise<{ pid: 
   }
   
   const result = await startDaemon(port);
-  const success = await waitForDaemon(port);
+  const success = await waitForDaemon(port, 30000);
   
   if (!success) {
-    throw new Error('Failed to start daemon: health check timeout');
+    throw new Error('Failed to start daemon: health check timeout after 30s');
   }
   
   return { ...result, started: true };

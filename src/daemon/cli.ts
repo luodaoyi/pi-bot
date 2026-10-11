@@ -48,12 +48,14 @@ async function main() {
       case 'serve':
       case 'start': {
         const port = values.port ? parseInt(values.port, 10) : 8787;
-        writePid(process.pid);
-        writePort(port);
         await serve({
           configPath: values.config,
           dev: values.dev ?? false,
           port,
+          onReady: () => {
+            writePid(process.pid);
+            writePort(port);
+          },
         });
         break;
       }

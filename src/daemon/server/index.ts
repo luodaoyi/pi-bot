@@ -20,7 +20,7 @@ import { createUsageTracker } from '../usage/index.js';
 import { setupRoutes } from './routes/index.js';
 import { setupSSE } from './sse.js';
 
-export async function serve(options: { configPath?: string; dev: boolean; port?: number }) {
+export async function serve(options: { configPath?: string; dev: boolean; port?: number; onReady?: () => void }) {
   const config = await loadConfig(options.configPath);
 
   console.log('Starting pi-bot daemon...');
@@ -151,6 +151,9 @@ export async function serve(options: { configPath?: string; dev: boolean; port?:
         hostname: host || '127.0.0.1',
       },
       () => {
+        if (options.onReady) {
+          options.onReady();
+        }
         resolve();
       }
     );
