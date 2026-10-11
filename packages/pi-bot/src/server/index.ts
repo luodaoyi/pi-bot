@@ -6,8 +6,12 @@ import { Hono } from 'hono';
 import { cors } from 'hono/cors';
 import { logger } from 'hono/logger';
 import { serve as nodeServe } from '@hono/node-server';
+import { join } from 'node:path';
 import { loadConfig, expandHome } from '../config.js';
 import { createStore } from '../store/index.js';
+import { SessionPool } from '../sessions/index.js';
+import { TeamCoordinator } from '../team/index.js';
+import { GroupManager } from '../groups/index.js';
 import { setupRoutes } from './routes/index.js';
 import { setupSSE } from './sse.js';
 
@@ -20,6 +24,19 @@ export async function serve(options: { configPath?: string; dev: boolean }) {
 
   // Initialize store
   const store = await createStore(config);
+
+  // Initialize session pool
+  const sessionPool = new SessionPool({
+    maxSessions: config.host.maxSessions,
+    idleTimeoutMs: config.host.idleSeconds * 1000,
+    sessionDir: join(expandHome(config.host.home), 'sessions'),
+  });
+
+  // Initialize team coordinator
+  const teamCoordinator = new TeamCoordinator(store, sessionPool);
+
+  // Initialize group manager
+  const groupManager = new GroupManager(store, sessionPool);
 
   // Create Hono app
   const app = new Hono();
@@ -38,7 +55,7 @@ export async function serve(options: { configPath?: string; dev: boolean }) {
   });
 
   // Mount all feature routes
-  setupRoutes(app, store, config);
+  setupRoutes(app, store, config, { sessionPool, teamCoordinator, groupManager });
 
   // SSE endpoint
   setupSSE(app, store);
@@ -72,14 +89,13 @@ export async function serve(options: { configPath?: string; dev: boolean }) {
     );
 
     // Handle shutdown
-    process.on('SIGINT', () => {
+    const shutdown = async () => {
       console.log('\nShutting down...');
+      await sessionPool.destroy();
       process.exit(0);
-    });
+    };
 
-    process.on('SIGTERM', () => {
-      console.log('\nShutting down...');
-      process.exit(0);
-    });
+    process.on('SIGINT', () => void shutdown());
+    process.on('SIGTERM', () => void shutdown());
   });
 }
