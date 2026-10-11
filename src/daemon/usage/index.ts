@@ -29,6 +29,12 @@ export class UsageTracker {
   async init(): Promise<void> {
     if (this.initialized) return;
 
+    // Ensure directory exists
+    const { dirname } = await import('node:path');
+    const { mkdir } = await import('node:fs/promises');
+    const dir = dirname(this.dbPath);
+    await mkdir(dir, { recursive: true });
+
     // Open database
     this.db = new DatabaseSync(this.dbPath);
 
