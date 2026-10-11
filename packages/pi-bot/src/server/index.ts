@@ -49,7 +49,12 @@ export async function serve(options: { configPath?: string; dev: boolean }) {
     onTrigger: async (schedule) => {
       // Use sessionPool to deliver scheduled messages
       try {
-        await sessionPool.deliver(schedule.botId, schedule.prompt);
+        const bot = await store.getBot(schedule.botId);
+        if (!bot) {
+          console.error(`Bot not found: ${schedule.botId}`);
+          return;
+        }
+        await sessionPool.sendMessage(schedule.botId, schedule.prompt, bot);
       } catch (error) {
         console.error(`Failed to deliver scheduled message: ${error}`);
       }
@@ -69,16 +74,19 @@ export async function serve(options: { configPath?: string; dev: boolean }) {
   // Record usage from session pool events
   sessionPool.on('message_end', (event) => {
     if (event.type === 'message_end') {
-      usage.record({
-        botId: event.botId,
-        kind: 'completion',
-        model: 'unknown', // TODO: get from bot config
-        promptTokens: 0, // TODO: get from event
-        completionTokens: 0, // TODO: get from event
-        totalTokens: 0,
-        cost: 0,
-        timestamp: Date.now(),
-      }).catch((err) => {
+      // TODO: Get actual token counts and model info from event
+      usage.record(
+        event.botId, // botId
+        'session-' + event.botId, // sessionId - TODO: get actual session ID
+        'unknown', // provider - TODO: get from bot config
+        'unknown', // model - TODO: get from bot config
+        'turn', // kind
+        0, // inputTokens - TODO: get from event
+        0, // cacheReadTokens
+        0, // cacheWriteTokens
+        0, // outputTokens - TODO: get from event
+        0  // cost
+      ).catch((err) => {
         console.error('Failed to record usage:', err);
       });
     }

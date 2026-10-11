@@ -9,16 +9,25 @@ import type { Store } from '../../store/index.js';
 import type { SessionPool } from '../../sessions/index.js';
 import type { TeamCoordinator } from '../../team/index.js';
 import type { GroupManager } from '../../groups/index.js';
+import type { Scheduler } from '../../scheduler/index.js';
+import type { SecretsManager } from '../../secrets/index.js';
+import type { UsageTracker } from '../../usage/index.js';
 import { setupBotRoutes } from './bots.js';
 import { setupBotChatRoutes } from './bots-chat.js';
 import { setupTeamRoutes } from './team.js';
 import { setupGroupRoutes } from './groups.js';
 import { setupSystemRoutes } from './system.js';
+import { setupTaskRoutes } from './tasks.js';
+import { setupSecretRoutes } from './secrets.js';
+import { setupUsageRoutes } from './usage.js';
 
 export interface RoutesContext {
   sessionPool?: SessionPool;
   teamCoordinator?: TeamCoordinator;
   groupManager?: GroupManager;
+  scheduler?: Scheduler;
+  secrets?: SecretsManager;
+  usage?: UsageTracker;
 }
 
 export function setupRoutes(
@@ -46,8 +55,18 @@ export function setupRoutes(
     setupGroupRoutes(app, store, context.groupManager, config);
   }
 
-  // Future feature routes (to be added by parallel branches):
-  // setupSchedulerRoutes(app, store, config);
-  // setupSecretsRoutes(app, store, config);
-  // setupUsageRoutes(app, store, config);
+  // Scheduler routes
+  if (context?.scheduler) {
+    setupTaskRoutes(app, context.scheduler);
+  }
+
+  // Secrets management routes
+  if (context?.secrets) {
+    setupSecretRoutes(app, context.secrets);
+  }
+
+  // Usage tracking routes
+  if (context?.usage) {
+    setupUsageRoutes(app, context.usage);
+  }
 }
