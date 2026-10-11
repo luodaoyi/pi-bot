@@ -9,9 +9,11 @@
     "pi-bot": "./dist/cli.js"
   },
   "pi": {
-    "extensions": [
-      "./dist/extension/index.js"
-    ]
+    "name": "pi-bot",
+    "version": "0.1.0",
+    "description": "Multi-bot daemon with pi SDK and Respire memory",
+    "main": "./dist/index.js",
+    "extensions": []
   },
   "keywords": [
     "pi-bot",
