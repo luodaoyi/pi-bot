@@ -56,8 +56,6 @@
   "dependencies": {
     "@hono/node-server": "^2.1.4",
     "@sinclair/typebox": "^0.34.24",
-    "@types/better-sqlite3": "^9.6.0",
-    "better-sqlite3": "^13.0.3",
     "croner": "^10.0.1",
     "hono": "^4.6.14",
     "zod": "^3.24.1"
@@ -82,5 +80,8 @@
   },
   "engines": {
     "node": ">=22.19.0"
+  },
+  "comments": {
+    "engines": "node:sqlite requires Node.js >= 22.5.0, pi requires >= 22.19.0"
   }
 }

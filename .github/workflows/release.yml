@@ -16,37 +16,21 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v4
-        with:
-          version: 10
-      
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: 22.19.0
-          cache: 'pnpm'
+          cache: 'npm'
           registry-url: 'https://registry.npmjs.org'
       
       - name: Install dependencies
-        run: pnpm install --frozen-lockfile
+        run: npm ci
       
       - name: Build
-        run: pnpm -r build
+        run: npm run build
       
-      - name: Publish pi-bot to npm
-        working-directory: ./packages/pi-bot
+      - name: Build web
+        run: npm run build:web
+      
+      - name: Publish to npm with provenance
         run: npm publish --provenance --access public
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-      
-      - name: Publish pi-respire to npm
-        working-directory: ./packages/pi-respire
-        run: npm publish --provenance --access public
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-      
-      - name: Create GitHub Release
-        uses: softprops/action-gh-release@v2
-        with:
-          generate_release_notes: true

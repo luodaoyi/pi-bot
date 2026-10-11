@@ -1,10 +1,10 @@
 /**
  * Usage tracking: Record and aggregate token usage and costs
  * 
- * Based on DS-Bot usage.js but with better-sqlite3 for cross-platform compatibility
+ * Now uses Node.js built-in node:sqlite (available since Node 22.5)
  */
 
-import Database from 'better-sqlite3';
+import { DatabaseSync } from 'node:sqlite';
 import { randomUUID } from 'node:crypto';
 import type {
   UsageRecord,
@@ -18,7 +18,7 @@ export interface UsageOptions {
 }
 
 export class UsageTracker {
-  private db: Database.Database | null = null;
+  private db: DatabaseSync | null = null;
   private dbPath: string;
   private initialized = false;
 
@@ -30,10 +30,10 @@ export class UsageTracker {
     if (this.initialized) return;
 
     // Open database
-    this.db = new Database(this.dbPath);
+    this.db = new DatabaseSync(this.dbPath);
 
     // Enable WAL mode for better concurrency
-    this.db.pragma('journal_mode = WAL');
+    this.db.exec('PRAGMA journal_mode = WAL');
 
     // Create tables
     this.db.exec(`
@@ -124,7 +124,7 @@ export class UsageTracker {
       cacheReadTokens,
       cacheWriteTokens,
       outputTokens,
-      cost ?? null
+      cost ?? null as any
     );
 
     return record;
@@ -168,7 +168,7 @@ export class UsageTracker {
 
     // Get total count
     const countStmt = this.db.prepare(`SELECT COUNT(*) as count FROM calls ${whereClause}`);
-    const countRow = countStmt.get(...values) as { count: number };
+    const countRow = countStmt.get(...(values as any[])) as { count: number };
     const total = countRow.count;
 
     // Get records with pagination
@@ -181,7 +181,7 @@ export class UsageTracker {
       LIMIT ? OFFSET ?
     `);
 
-    const rows = stmt.all(...values, limit, offset) as Array<{
+    const rows = stmt.all(...(values as any[]), limit, offset) as Array<{
       id: string;
       bot_id: string;
       session_id: string;
@@ -266,8 +266,8 @@ export class UsageTracker {
         groupByClause = 'model';
         break;
       case 'day':
-        selectClause = "DATE(timestamp) as day";
-        groupByClause = 'DATE(timestamp)';
+        selectClause = "strftime('%Y-%m-%d', timestamp) as day";
+        groupByClause = "strftime('%Y-%m-%d', timestamp)";
         break;
     }
 
@@ -285,7 +285,7 @@ export class UsageTracker {
       ORDER BY timestamp DESC
     `);
 
-    const rows = stmt.all(...values) as Array<{
+    const rows = stmt.all(...(values as any[])) as Array<{
       bot_id?: string;
       model?: string;
       day?: string;
@@ -369,7 +369,7 @@ export class UsageTracker {
     const stmt = this.db.prepare('DELETE FROM calls WHERE timestamp < ?');
     const result = stmt.run(cutoffDate.toISOString());
 
-    return result.changes;
+    return Number(result.changes ?? 0);
   }
 }
 
