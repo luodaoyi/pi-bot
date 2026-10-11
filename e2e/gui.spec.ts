@@ -26,7 +26,7 @@ function attachGuards(page: Page) {
   page.on('console', (msg) => {
     if (msg.type() === 'error') {
       const text = msg.text();
-      // Chrome 把 404 记成 console.error；A/C 未合并前新合同路由会 404
+      // 静态资源 404（favicon 等）不是 API 失败
       if (/Failed to load resource:.*404/i.test(text)) return;
       errors.push(`[console.error] ${text}`);
     }
@@ -38,9 +38,6 @@ function attachGuards(page: Page) {
     const url = response.url();
     if (!url.includes('/api')) return;
     if (response.status() >= 400) {
-      // C 的 /api/models、/api/providers 已在 main；仅会话路由等 A 合并
-      const pendingSessions = /\/api\/bots\/[^/]+\/sessions/.test(url);
-      if (response.status() === 404 && pendingSessions) return;
       apiFailures.push(`${response.status()} ${response.request().method()} ${url}`);
     }
   });
@@ -132,6 +129,9 @@ test.describe('PI-Bot Web GUI E2E (real daemon)', () => {
     await expect(page.locator('[data-testid="model-picker-select"] option').nth(1)).toBeAttached();
     await expect(page.getByTestId('thinking-selector')).toBeVisible();
     await expect(page.getByTestId('session-info')).toBeVisible();
+    await expect(page.getByTestId('session-new')).toBeEnabled();
+    await page.getByTestId('session-new').click();
+    await expect(page.getByTestId('session-item').first()).toBeVisible({ timeout: 8000 });
     await guards.assertClean('root/bots');
 
     await page.goto(`${BASE_URL}/bots`);

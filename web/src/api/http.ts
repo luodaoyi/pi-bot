@@ -44,6 +44,7 @@ import {
   normalizeSseEvent,
   normalizeStats,
   toModelInfo,
+  toModelRef,
   toPiModel,
   toThinking,
   normalizePiMessages,
@@ -141,6 +142,20 @@ function normalizeSecret(raw: Record<string, unknown>): Secret {
     scope: Array.isArray(scope) ? (scope as string[]) : scope === 'all' ? ['all'] : [],
     createdAt: String(raw['createdAt'] ?? ''),
     lastUsedAt: raw['lastUsedAt'] as string | undefined,
+  };
+}
+
+function normalizeSessionSummary(raw: SessionSummary | undefined): SessionSummary {
+  const rec = (raw && typeof raw === 'object' ? raw : {}) as SessionSummary;
+  return {
+    id: String(rec.id ?? ''),
+    name: rec.name,
+    createdAt: String(rec.createdAt ?? ''),
+    updatedAt: String(rec.updatedAt ?? ''),
+    messageCount: Number(rec.messageCount ?? 0),
+    model: toModelRef(rec.model),
+    thinking: toThinking(rec.thinking),
+    isActive: Boolean(rec.isActive),
   };
 }
 
@@ -473,7 +488,7 @@ export class HttpApiClient implements ApiClient {
 
   async listSessions(botId: string): Promise<SessionSummary[]> {
     const data = await this.request<{ sessions: SessionSummary[] }>(`/api/bots/${botId}/sessions`);
-    return data.sessions || [];
+    return (data.sessions || []).map(normalizeSessionSummary);
   }
 
   async createSession(botId: string, name?: string): Promise<SessionSummary> {
@@ -481,13 +496,13 @@ export class HttpApiClient implements ApiClient {
       method: 'POST',
       body: JSON.stringify({ name }),
     });
-    return data.session;
+    return normalizeSessionSummary(data.session);
   }
 
   async getSession(botId: string, sessionId: string): Promise<SessionDetail> {
     const data = await this.request<SessionDetail>(`/api/bots/${botId}/sessions/${sessionId}`);
     return {
-      session: data.session,
+      session: normalizeSessionSummary(data.session),
       messages: normalizePiMessages(data.messages),
       stats: normalizeStats(data.stats),
     };
@@ -502,7 +517,7 @@ export class HttpApiClient implements ApiClient {
       method: 'PATCH',
       body: JSON.stringify(patch),
     });
-    return data.session;
+    return normalizeSessionSummary(data.session);
   }
 
   async activateSession(botId: string, sessionId: string): Promise<SessionSummary> {
@@ -510,7 +525,7 @@ export class HttpApiClient implements ApiClient {
       `/api/bots/${botId}/sessions/${sessionId}/activate`,
       { method: 'POST' }
     );
-    return data.session;
+    return normalizeSessionSummary(data.session);
   }
 
   async forkSession(botId: string, sessionId: string, entryId: string): Promise<SessionSummary> {
@@ -518,7 +533,7 @@ export class HttpApiClient implements ApiClient {
       `/api/bots/${botId}/sessions/${sessionId}/fork`,
       { method: 'POST', body: JSON.stringify({ entryId }) }
     );
-    return data.session;
+    return normalizeSessionSummary(data.session);
   }
 
   async deleteSession(botId: string, sessionId: string): Promise<void> {

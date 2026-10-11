@@ -305,20 +305,6 @@ export interface OAuthPollResponse {
 // Sessions
 // ============================================================================
 
-<<<<<<< HEAD
-=======
-export interface SessionSummary {
-  id: string;
-  name?: string;
-  createdAt: string;
-  updatedAt: string;
-  messageCount: number;
-  model: ModelRef | null;
-  thinking: ThinkingLevel | null;
-  isActive: boolean;
-}
-
->>>>>>> 1bde334 (align(web): C 的真实 /api/models 与 /api/providers 路由)
 export interface SessionStats {
   tokens: {
     input: number;
