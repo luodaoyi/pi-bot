@@ -94,6 +94,16 @@ describe.skipIf(!sqliteAvailable)('UsageTracker', () => {
     });
     expect(outRange).toHaveLength(0);
 
+    const today = now.toISOString().slice(0, 10);
+    const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+    const { records: dateOnly } = await usage.query({
+      startDate: weekAgo,
+      endDate: today,
+    });
+    expect(dateOnly).toHaveLength(1);
+    const aggs = await usage.aggregate('bot', { startDate: weekAgo, endDate: today });
+    expect(aggs[0]?.stats.totalInputTokens).toBeGreaterThan(0);
+
     await usage.shutdown();
   });
 

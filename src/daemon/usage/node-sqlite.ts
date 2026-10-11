@@ -13,6 +13,7 @@ import type {
   UsageAggregation,
   UsageQueryParams,
 } from '#shared/index.js';
+import { boundEndDate, boundStartDate } from './date-bounds.js';
 
 export interface UsageOptions {
   dbPath: string;
@@ -151,12 +152,12 @@ export class UsageTrackerNodeSqlite {
 
     if (params.startDate) {
       conditions.push('timestamp >= ?');
-      values.push(params.startDate);
+      values.push(boundStartDate(params.startDate));
     }
 
     if (params.endDate) {
       conditions.push('timestamp <= ?');
-      values.push(params.endDate);
+      values.push(boundEndDate(params.endDate));
     }
 
     const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
@@ -235,12 +236,12 @@ export class UsageTrackerNodeSqlite {
 
     if (params.startDate) {
       conditions.push('timestamp >= ?');
-      values.push(params.startDate);
+      values.push(boundStartDate(params.startDate));
     }
 
     if (params.endDate) {
       conditions.push('timestamp <= ?');
-      values.push(params.endDate);
+      values.push(boundEndDate(params.endDate));
     }
 
     const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';

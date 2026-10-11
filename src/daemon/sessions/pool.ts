@@ -286,7 +286,7 @@ export class SessionPool extends EventEmitter {
     }
 
     const forked = SessionManager.forkFrom(sourcePath, cwd, sessionDir, { id: newSessionId() });
-    if (entryId) {
+    if (entryId && entryId !== 'head' && entryId !== 'latest') {
       forked.branch(entryId);
     }
 
