@@ -94,6 +94,14 @@ export function isProcessRunning(pid: number): boolean {
   }
 }
 
+export interface HealthResponse {
+  status: string;
+  version: string;
+  pid: number;
+  home: string;
+  timestamp: string;
+}
+
 export async function isDaemonReachable(port: number = DEFAULT_PORT): Promise<boolean> {
   try {
     const response = await fetch(`http://localhost:${port}/health`, {
@@ -102,6 +110,18 @@ export async function isDaemonReachable(port: number = DEFAULT_PORT): Promise<bo
     return response.ok;
   } catch {
     return false;
+  }
+}
+
+export async function getHealthInfo(port: number = DEFAULT_PORT): Promise<HealthResponse | null> {
+  try {
+    const response = await fetch(`http://localhost:${port}/health`, {
+      signal: AbortSignal.timeout(2000),
+    });
+    if (!response.ok) return null;
+    return await response.json() as HealthResponse;
+  } catch {
+    return null;
   }
 }
 
@@ -136,10 +156,12 @@ export async function startDaemon(port: number = DEFAULT_PORT): Promise<{ pid: n
   await ensureDataDir();
   
   const cliPath = getCliPath();
+  const piBotHome = getPiBotHome();
   
   const child = spawn(process.execPath, [cliPath, 'serve', '--port', port.toString()], {
     detached: true,
     stdio: 'ignore',
+    cwd: piBotHome,
     env: { ...process.env },
   });
   
@@ -150,29 +172,35 @@ export async function startDaemon(port: number = DEFAULT_PORT): Promise<{ pid: n
   return { pid, port };
 }
 
-export async function stopDaemon(): Promise<boolean> {
+export async function stopDaemon(_force: boolean = false): Promise<boolean> {
   const pid = readPid();
   const port = readPort();
   
+  // Try to stop via HTTP first (works even without PID file)
+  const health = await getHealthInfo(port);
+  if (health) {
+    try {
+      const response = await fetch(`http://localhost:${port}/api/shutdown`, {
+        method: 'POST',
+        signal: AbortSignal.timeout(5000),
+      });
+      
+      if (response.ok) {
+        await new Promise((resolve) => setTimeout(resolve, 1000));
+        deletePid();
+        return true;
+      }
+    } catch {
+      // Ignore fetch errors, fall through
+    }
+  }
+  
+  // If no PID file and daemon not reachable, nothing to stop
   if (!pid) {
     return false;
   }
   
-  try {
-    const response = await fetch(`http://localhost:${port}/api/shutdown`, {
-      method: 'POST',
-      signal: AbortSignal.timeout(5000),
-    });
-    
-    if (response.ok) {
-      await new Promise((resolve) => setTimeout(resolve, 1000));
-      deletePid();
-      return true;
-    }
-  } catch {
-    // Ignore fetch errors, fall through to process kill
-  }
-  
+  // Try to kill by PID
   if (isProcessRunning(pid)) {
     try {
       process.kill(pid, 'SIGTERM');
@@ -185,6 +213,7 @@ export async function stopDaemon(): Promise<boolean> {
       deletePid();
       return true;
     } catch {
+      deletePid();
       return false;
     }
   }
@@ -217,8 +246,23 @@ export async function getDaemonStatus(): Promise<DaemonStatus> {
 }
 
 export async function ensureDaemon(port: number = DEFAULT_PORT): Promise<{ pid: number; port: number; started: boolean }> {
-  const status = await getDaemonStatus();
+  // Check if a daemon is already running on this port
+  const health = await getHealthInfo(port);
+  if (health) {
+    const localPid = readPid();
+    if (localPid && health.pid === localPid) {
+      // Same daemon, all good
+      return { pid: health.pid, port, started: false };
+    } else {
+      // Different daemon (or no PID file)
+      console.warn(`Warning: Found existing daemon on port ${port} (PID: ${health.pid}, version: ${health.version})`);
+      console.warn(`Expected PID: ${localPid || 'none'}`);
+      console.warn(`Run 'pi-bot stop' to stop the existing daemon first`);
+      return { pid: health.pid, port, started: false };
+    }
+  }
   
+  const status = await getDaemonStatus();
   if (status.running && status.pid) {
     return { pid: status.pid, port: status.port, started: false };
   }
@@ -228,6 +272,13 @@ export async function ensureDaemon(port: number = DEFAULT_PORT): Promise<{ pid: 
   
   if (!success) {
     throw new Error('Failed to start daemon: health check timeout after 30s');
+  }
+  
+  // Verify the responding daemon
+  const newHealth = await getHealthInfo(port);
+  if (newHealth && newHealth.pid !== result.pid) {
+    console.warn(`Warning: Started daemon with PID ${result.pid} but health check reports PID ${newHealth.pid}`);
+    console.warn(`Another daemon may have bound to port ${port} first`);
   }
   
   return { ...result, started: true };

@@ -136,3 +136,79 @@ jobs:
           kill $DAEMON_PID
           
           echo "E2E smoke test passed!"
+      
+      - name: Test Global Install (npm)
+        shell: bash
+        run: |
+          # Get version
+          cd "${{ github.workspace }}"
+          VERSION=$(node -p "require('./package.json').version")
+          TARBALL_PATH="${{ github.workspace }}/pi-agent-bot-${VERSION}.tgz"
+          
+          # Convert path for Windows
+          if [[ "$OSTYPE" == "msys" ]] || [[ "$OSTYPE" == "win32" ]]; then
+            TARBALL_PATH="$(cygpath -u "$TARBALL_PATH")"
+          fi
+          
+          echo "=== Testing npm global install ==="
+          npm install -g "$TARBALL_PATH"
+          
+          # Verify bin is on PATH
+          which pi-bot || (echo "ERROR: pi-bot not on PATH" && exit 1)
+          pi-bot --version || exit 1
+          
+          # Create temp test directory (different from package install)
+          TEST_CWD=$(mktemp -d)
+          cd "$TEST_CWD"
+          echo "Testing from: $(pwd)"
+          
+          # Start daemon without browser
+          echo "Starting daemon..."
+          pi-bot open --no-browser &
+          OPEN_PID=$!
+          
+          # Wait for daemon to be ready
+          for i in {1..30}; do
+            if curl -f http://localhost:8787/health 2>/dev/null; then
+              echo "✓ Daemon is reachable"
+              break
+            fi
+            if [ $i -eq 30 ]; then
+              echo "ERROR: Daemon failed to start within 30s"
+              exit 1
+            fi
+            sleep 1
+          done
+          
+          # Test web UI serves correctly
+          echo "Testing web UI..."
+          curl -f http://localhost:8787/ | grep -q "<!DOCTYPE html>" || (echo "ERROR: index.html not served" && exit 1)
+          echo "✓ index.html served successfully"
+          
+          # Test assets
+          ASSET_URL=$(curl -s http://localhost:8787/ | grep -o '/assets/[^"]*\.js' | head -1)
+          if [ -n "$ASSET_URL" ]; then
+            curl -f "http://localhost:8787$ASSET_URL" > /dev/null || (echo "ERROR: Asset $ASSET_URL not served" && exit 1)
+            echo "✓ Asset served successfully"
+          fi
+          
+          # Test status command
+          pi-bot status || (echo "ERROR: pi-bot status failed" && exit 1)
+          echo "✓ pi-bot status works"
+          
+          # Stop daemon
+          pi-bot stop || (echo "ERROR: pi-bot stop failed" && exit 1)
+          echo "✓ pi-bot stop works"
+          
+          # Verify it stopped
+          sleep 2
+          if pi-bot status 2>/dev/null; then
+            echo "ERROR: Daemon still running after stop"
+            exit 1
+          fi
+          echo "✓ Daemon stopped successfully"
+          
+          # Cleanup
+          cd "${{ github.workspace }}"
+          rm -rf "$TEST_CWD"
+          echo "✓ npm global install test passed"

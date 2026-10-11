@@ -6,9 +6,10 @@ import { Hono } from 'hono';
 import { cors } from 'hono/cors';
 import { logger } from 'hono/logger';
 import { serve as nodeServe } from '@hono/node-server';
-import { serveStatic } from '@hono/node-server/serve-static';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { readFileSync, existsSync } from 'node:fs';
+import { extname } from 'node:path';
 import { loadConfig, expandHome } from '../config.js';
 import { createStore } from '../store/index.js';
 import { SessionPool } from '../sessions/index.js';
@@ -100,11 +101,13 @@ export async function serve(options: { configPath?: string; dev: boolean; port?:
   app.use('*', logger());
   app.use('*', cors());
 
-  // Health check
+  // Health check with process info
   app.get('/health', (c) => {
     return c.json({
       status: 'ok',
-      version: '0.1.0',
+      version: '0.1.0-beta.4',
+      pid: process.pid,
+      home: homeDir,
       timestamp: new Date().toISOString(),
     });
   });
@@ -122,12 +125,90 @@ export async function serve(options: { configPath?: string; dev: boolean; port?:
   // SSE endpoint
   setupSSE(app, store);
 
-  // Serve static files (web UI)
+  // Serve static files (web UI) with absolute path support
   const __dirname = dirname(fileURLToPath(import.meta.url));
   const webDistPath = join(__dirname, '../../web');
   
-  app.use('/*', serveStatic({ root: webDistPath }));
-  app.get('*', serveStatic({ path: join(webDistPath, 'index.html') }));
+  console.log(`Web UI path: ${webDistPath}`);
+  
+  if (!existsSync(join(webDistPath, 'index.html'))) {
+    console.error(`ERROR: Web UI not found at ${webDistPath}`);
+    app.get('*', (c) => {
+      if (c.req.path.startsWith('/api')) {
+        return c.text('Not Found', 404);
+      }
+      return c.html(`
+        <!DOCTYPE html>
+        <html>
+          <head><title>Error - pi-bot</title></head>
+          <body>
+            <h1>Web UI Not Found</h1>
+            <p>Expected location: <code>${webDistPath}</code></p>
+            <p>Please reinstall pi-agent-bot</p>
+          </body>
+        </html>
+      `, 500);
+    });
+  } else {
+    // Custom static file handler with absolute paths
+    app.get('*', (c) => {
+      const path = c.req.path;
+      
+      // Skip API routes
+      if (path.startsWith('/api')) {
+        return c.text('Not Found', 404);
+      }
+      
+      // Normalize and prevent path traversal
+      const safePath = path.replace(/^\/+/, '').replace(/\.\./g, '');
+      const filePath = join(webDistPath, safePath || 'index.html');
+      
+      // Ensure file is within webDistPath
+      if (!filePath.startsWith(webDistPath)) {
+        return c.text('Forbidden', 403);
+      }
+      
+      // Try to serve the file
+      if (existsSync(filePath) && !filePath.endsWith('/')) {
+        try {
+          const content = readFileSync(filePath);
+          const ext = extname(filePath);
+          const mimeTypes: Record<string, string> = {
+            '.html': 'text/html',
+            '.css': 'text/css',
+            '.js': 'application/javascript',
+            '.json': 'application/json',
+            '.png': 'image/png',
+            '.jpg': 'image/jpeg',
+            '.jpeg': 'image/jpeg',
+            '.gif': 'image/gif',
+            '.svg': 'image/svg+xml',
+            '.ico': 'image/x-icon',
+            '.woff': 'font/woff',
+            '.woff2': 'font/woff2',
+          };
+          const contentType = mimeTypes[ext] || 'application/octet-stream';
+          
+          c.header('Content-Type', contentType);
+          return c.body(content);
+        } catch (error) {
+          console.error(`Error serving ${filePath}:`, error);
+          return c.text('Internal Server Error', 500);
+        }
+      }
+      
+      // SPA fallback: serve index.html for non-API routes
+      try {
+        const indexPath = join(webDistPath, 'index.html');
+        const content = readFileSync(indexPath);
+        c.header('Content-Type', 'text/html');
+        return c.body(content);
+      } catch (error) {
+        console.error('Error serving index.html:', error);
+        return c.text('Not Found', 404);
+      }
+    });
+  }
 
   // Start server
   const [host, portStr] = config.host.listen.split(':');

@@ -47,14 +47,23 @@ See [pi documentation](https://github.com/earendil-works/pi) for details.
 
 ## Installation
 
+**Requirements:** Node.js >= 22.19.0 (for built-in `node:sqlite` support)
+
 There are two ways to run pi-bot:
 
-### Option 1: Global CLI (npm)
+### Option 1: Global CLI (npm or pnpm)
 
 Install globally and use the `pi-bot` CLI:
 
+**Using npm:**
 ```bash
-npm install -g pi-agent-bot
+npm install -g pi-agent-bot@beta
+```
+
+**Using pnpm:**
+```bash
+pnpm add -g pi-agent-bot@beta
+# First time: Run 'pnpm setup' to configure global bin directory if needed
 ```
 
 Then start the daemon and open the web GUI:
@@ -66,9 +75,11 @@ pi-bot open
 # stop daemon: pi-bot stop
 ```
 
+**Note for pnpm users:** If `pi-bot` command is not found after installation, run `pnpm setup` to add pnpm's global bin directory to your PATH, then restart your shell.
+
 ### Option 2: Pi Extension (within Pi)
 
-Install as a Pi package and use the `/pi-bot` slash command:
+Install as a Pi package to get the `/pi-bot` slash command:
 
 ```bash
 pi install npm:pi-agent-bot
@@ -82,7 +93,7 @@ Then inside a Pi session:
 /pi-bot stop    # Stop the daemon
 ```
 
-Both methods share the same daemon instance at `~/.pi-bot`, so you can use either entry point.
+Both methods share the same daemon instance at `~/.pi-bot`, so you can use either entry point interchangeably.
 
 ### From source
 

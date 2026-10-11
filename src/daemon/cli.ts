@@ -36,6 +36,7 @@ async function main() {
       config: { type: 'string', short: 'c' },
       dev: { type: 'boolean' },
       port: { type: 'string', short: 'p' },
+      'no-browser': { type: 'boolean' },
     },
     allowPositionals: true,
   });
@@ -70,22 +71,45 @@ async function main() {
       }
 
       case 'open': {
-        const { port, started } = await ensureDaemon();
+        const { port, started, pid } = await ensureDaemon();
+        const { getHealthInfo } = await import('#shared/daemon-manager.js');
+        const health = await getHealthInfo(port);
+        
         if (started) {
-          console.log(`✓ Daemon started on port ${port}`);
+          console.log(`✓ Daemon started (PID: ${pid}, port: ${port})`);
         } else {
-          console.log(`✓ Daemon already running on port ${port}`);
+          console.log(`✓ Daemon already running (PID: ${health?.pid || pid}, port: ${port})`);
         }
+        
+        if (health) {
+          console.log(`  Version: ${health.version}`);
+          console.log(`  Home: ${health.home}`);
+        }
+        
         const url = `http://localhost:${port}`;
-        console.log(`Opening ${url}...`);
-        openUrl(url);
+        if (!values['no-browser']) {
+          console.log(`Opening ${url} in browser...`);
+          openUrl(url);
+        } else {
+          console.log(`Web UI available at ${url}`);
+        }
         break;
       }
 
       case 'status': {
         const status = await getDaemonStatus();
+        const { getHealthInfo } = await import('#shared/daemon-manager.js');
+        
         if (status.running) {
-          console.log(`✓ Daemon is running (PID: ${status.pid}, port: ${status.port})`);
+          const health = await getHealthInfo(status.port);
+          console.log(`✓ Daemon is running`);
+          console.log(`  PID: ${status.pid}`);
+          console.log(`  Port: ${status.port}`);
+          if (health) {
+            console.log(`  Version: ${health.version}`);
+            console.log(`  Home: ${health.home}`);
+            console.log(`  URL: http://localhost:${status.port}`);
+          }
           process.exit(0);
         } else {
           console.log('✗ Daemon is not running');
@@ -139,6 +163,7 @@ Usage:
 Options:
   -c, --config <path>      Config file path
   -p, --port <port>        Server port (default: 8787)
+  --no-browser            Don't open browser (with 'open' command)
   -h, --help              Show help
   -v, --version           Show version
   --dev                   Development mode
@@ -146,7 +171,9 @@ Options:
 Examples:
   pi-bot                   (starts daemon)
   pi-bot open              (opens web GUI)
+  pi-bot open --no-browser (start without opening browser)
   pi-bot serve --port 8080
+  pi-bot status
   pi-bot stop
   pi-bot doctor
   `);
