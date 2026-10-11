@@ -10,12 +10,16 @@ export default defineConfig({
     ],
   },
   resolve: {
-    alias: {
-      '#shared': '/workspace/src/shared',
-      '#respire-client': '/workspace/src/respire-client',
-      '#respire-extension': '/workspace/src/respire-extension',
-      '#daemon': '/workspace/src/daemon',
-      '@': path.resolve(__dirname, './web/src'),
-    },
+    alias: [
+      { find: /^#shared\/(.*)$/, replacement: path.resolve(__dirname, './src/shared/$1') },
+      { find: /^#shared$/, replacement: path.resolve(__dirname, './src/shared') },
+      { find: /^#respire-client\/(.*)$/, replacement: path.resolve(__dirname, './src/respire-client/$1') },
+      { find: /^#respire-client$/, replacement: path.resolve(__dirname, './src/respire-client') },
+      { find: /^#respire-extension\/(.*)$/, replacement: path.resolve(__dirname, './src/respire-extension/$1') },
+      { find: /^#respire-extension$/, replacement: path.resolve(__dirname, './src/respire-extension') },
+      { find: /^#daemon\/(.*)$/, replacement: path.resolve(__dirname, './src/daemon/$1') },
+      { find: /^#daemon$/, replacement: path.resolve(__dirname, './src/daemon') },
+      { find: '@', replacement: path.resolve(__dirname, './web/src') },
+    ],
   },
 });
