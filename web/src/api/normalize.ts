@@ -88,7 +88,7 @@ export function normalizeSettings(raw: unknown): Settings {
 }
 
 export function settingsToContract(settings: Settings): ContractSettings {
-  return { ...settings };
+  return { ...settings, memoryReview: Boolean(settings.memoryReview) };
 }
 
 export function toModelInfo(model: PiModel): ModelInfo {
