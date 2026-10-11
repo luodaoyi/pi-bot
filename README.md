@@ -227,25 +227,119 @@ The release workflow automatically uses `--provenance` flag for supply chain tra
 
 ### Publishing a Release
 
-1. **Update version in all packages:**
+#### 1. Update CHANGELOG.md
 
-```bash
-cd packages/pi-bot && npm version patch  # or minor, major
-cd ../pi-respire && npm version patch
-git commit -am "chore: bump version to 0.x.x"
+Follow [Keep a Changelog](https://keepachangelog.com/) format. Add a new section for the upcoming version with:
+- Summary in English and Chinese (摘要)
+- Grouped changes: Added / Fixed / Changed / Deprecated / Removed / Security
+- Link each change to its commit SHA (e.g., `([abc1234](https://github.com/luodaoyi/pi-bot/commit/abc1234))`)
+- Link merged PRs (e.g., `[#123](https://github.com/luodaoyi/pi-bot/pull/123)`)
+- Document known issues
+
+Example:
+```markdown
+## [0.1.0-beta.5] - 2026-10-12
+
+### Summary / 摘要
+
+**New feature X.** Brief description in English.
+
+**新功能X。** 简要中文描述。
+
+### Added / 新增
+
+- Feature description ([abc1234](https://github.com/luodaoyi/pi-bot/commit/abc1234)) [#10](https://github.com/luodaoyi/pi-bot/pull/10)
+  - 中文描述
+
+### Fixed / 修复
+
+- Bug fix description ([def5678](https://github.com/luodaoyi/pi-bot/commit/def5678))
+  - 中文描述
 ```
 
-2. **Push and tag:**
+#### 2. Bump version in package.json
 
 ```bash
-git tag v0.x.x
-git push origin main --tags
+# For beta releases
+npm version prerelease --preid=beta
+
+# For production releases  
+npm version patch  # or minor, major
 ```
 
-GitHub Actions will automatically:
-- Build all packages
-- Publish to npm with provenance
-- Create GitHub release with auto-generated notes
+Commit the version bump:
+```bash
+git add package.json CHANGELOG.md
+git commit -m "chore: bump version to 0.x.x"
+git push origin main
+```
+
+#### 3. Create and push the release tag
+
+```bash
+# Tag must match the version in package.json
+VERSION=$(node -p "require('./package.json').version")
+git tag v$VERSION
+git push origin v$VERSION
+```
+
+#### 4. Automated release workflow
+
+The `.github/workflows/release.yml` workflow will automatically:
+
+1. **Verify** package.json version matches the git tag
+2. **Build** the project and web UI
+3. **Test** all code (lint, typecheck, unit tests)
+4. **Check** if version already exists on npm
+5. **Publish** to npm with OIDC trusted publishing and provenance
+6. **Generate** detailed release notes from CHANGELOG.md:
+   - Extract the matching CHANGELOG section
+   - Add commit log with linked SHAs and PRs
+   - Add installation instructions (npm, pnpm, Pi CLI)
+   - Add full changelog compare link
+7. **Create** GitHub Release with generated notes and tarball attachment
+
+#### 5. Release notes requirements
+
+**Every GitHub Release MUST have detailed notes.** The workflow will fail if:
+- No matching CHANGELOG.md section found
+- Generated release notes are too short (< 10 lines)
+
+Release notes include:
+- **What's Changed**: CHANGELOG summary and grouped changes
+- **Commits**: Full commit log with SHAs and PR links
+- **Installation**: npm/pnpm/pi install commands
+- **Full Changelog**: Compare link to previous version
+
+#### 6. Backfilling existing releases
+
+To update release notes for existing versions:
+
+```bash
+./scripts/backfill-releases.sh
+```
+
+This script:
+- Reads CHANGELOG.md for each version
+- Generates comprehensive release notes
+- Updates GitHub Releases via `gh release edit`
+
+#### 7. Verify the release
+
+After the workflow completes:
+
+```bash
+# Check npm publication
+npm view pi-agent-bot dist-tags
+npm view pi-agent-bot@beta
+
+# Check GitHub Release
+gh release view v0.x.x
+
+# Verify tarball
+npm pack pi-agent-bot@beta
+tar -tzf pi-agent-bot-*.tgz | head -20
+```
 
 ## Contributing
 

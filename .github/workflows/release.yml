@@ -95,11 +95,86 @@ jobs:
         run: |
           npm publish --provenance --access public --tag ${{ steps.npm_tag.outputs.tag }}
       
+      - name: Generate release notes
+        run: |
+          TAG_VERSION="${{ github.ref_name }}"
+          echo "Generating release notes for $TAG_VERSION"
+          
+          # Find previous tag
+          PREV_TAG=$(git describe --tags --abbrev=0 $TAG_VERSION^ 2>/dev/null || echo "")
+          
+          if [ -z "$PREV_TAG" ]; then
+            # First release, use first commit  
+            PREV_TAG=$(git rev-list --max-parents=0 HEAD)
+            echo "First release, comparing from initial commit: $PREV_TAG"
+          else
+            echo "Previous tag: $PREV_TAG"
+          fi
+          
+          # Extract CHANGELOG section for this version
+          VERSION_NUMBER="${TAG_VERSION#v}"
+          CHANGELOG_SECTION=$(awk "/## \[${VERSION_NUMBER}\]/,/## \[/" CHANGELOG.md | sed '/^## \[/d' | head -50)
+          
+          if [ -z "$CHANGELOG_SECTION" ]; then
+            echo "ERROR: No CHANGELOG.md section found for version $VERSION_NUMBER"
+            exit 1
+          fi
+          
+          # Generate commit log grouped by type
+          echo "## What's Changed" > release-notes.md
+          echo "" >> release-notes.md
+          echo "$CHANGELOG_SECTION" >> release-notes.md
+          echo "" >> release-notes.md
+          echo "## Commits" >> release-notes.md
+          echo "" >> release-notes.md
+          
+          # Group commits by conventional commit type
+          git log $PREV_TAG..$TAG_VERSION --pretty=format:"%h %s" --reverse | while read sha msg; do
+            # Check if this commit has a PR
+            PR_NUM=$(gh pr list --state merged --search "$sha" --json number -q '.[0].number' 2>/dev/null || echo "")
+            if [ -n "$PR_NUM" ]; then
+              PR_LINK=" ([#$PR_NUM](https://github.com/luodaoyi/pi-bot/pull/$PR_NUM))"
+            else
+              PR_LINK=""
+            fi
+            
+            echo "- [\`$sha\`](https://github.com/luodaoyi/pi-bot/commit/$sha) $msg$PR_LINK" >> release-notes.md
+          done
+          
+          echo "" >> release-notes.md
+          echo "## Installation" >> release-notes.md
+          echo "" >> release-notes.md
+          echo '```bash' >> release-notes.md
+          echo "# Using npm" >> release-notes.md
+          echo "npm install -g pi-agent-bot@beta" >> release-notes.md
+          echo "" >> release-notes.md
+          echo "# Using pnpm" >> release-notes.md
+          echo "pnpm add -g pi-agent-bot@beta" >> release-notes.md
+          echo "" >> release-notes.md
+          echo "# Using Pi CLI" >> release-notes.md
+          echo "pi install npm:pi-agent-bot" >> release-notes.md
+          echo '```' >> release-notes.md
+          echo "" >> release-notes.md
+          echo "**Full Changelog**: https://github.com/luodaoyi/pi-bot/compare/$PREV_TAG...$TAG_VERSION" >> release-notes.md
+          
+          # Fail if release notes are empty or too short
+          if [ $(wc -l < release-notes.md) -lt 10 ]; then
+            echo "ERROR: Generated release notes are too short or empty"
+            cat release-notes.md
+            exit 1
+          fi
+          
+          echo "Generated release notes:"
+          cat release-notes.md
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      
       - name: Create GitHub Release
-        uses: softprops/action-gh-release@v1
-        with:
-          files: pi-agent-bot-${{ steps.version.outputs.tag }}.tgz
-          generate_release_notes: true
-          prerelease: ${{ contains(steps.version.outputs.tag, '-') }}
+        run: |
+          gh release create ${{ github.ref_name }} \
+            --title "${{ github.ref_name }} Release" \
+            --notes-file release-notes.md \
+            --prerelease \
+            pi-agent-bot-*.tgz
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
