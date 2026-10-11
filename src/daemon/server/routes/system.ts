@@ -2,10 +2,21 @@
  * System routes (status, models, etc.)
  */
 
+import { readFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
+import { dirname, join } from 'node:path';
 import type { Hono } from 'hono';
 import type { Config } from '../../config.js';
 import type { Store } from '../../store/index.js';
 import { RespireClient } from '#respire-client/index.js';
+
+// Read version from package.json
+// In dist/daemon/server/routes/system.js, __dirname is dist/daemon/server/routes, so go up 4 levels
+const __dirname = dirname(fileURLToPath(import.meta.url));
+const packageJson = JSON.parse(
+  readFileSync(join(__dirname, '../../../..', 'package.json'), 'utf-8')
+);
+const VERSION = packageJson.version;
 
 export function setupSystemRoutes(app: Hono, store: Store, config: Config) {
   // System status
@@ -34,7 +45,7 @@ export function setupSystemRoutes(app: Hono, store: Store, config: Config) {
     return c.json({
       success: true,
       data: {
-        version: '0.1.0',
+        version: VERSION,
         uptime: process.uptime(),
         activeSessions: await store.getActiveSessionCount(),
         memoryBackend: config.memory.backend,
