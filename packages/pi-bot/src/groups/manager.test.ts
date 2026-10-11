@@ -2,7 +2,7 @@
  * Group manager tests
  */
 
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { GroupManager } from '../groups/manager.js';
 import type { Store } from '../store/index.js';
 import { SessionPool } from '../sessions/pool.js';
