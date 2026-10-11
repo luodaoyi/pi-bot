@@ -30,10 +30,10 @@ const MAX_HOPS = 6; // Prevent infinite message loops
 
 export class SessionPool extends EventEmitter {
   private sessions = new Map<string, BotSession>();
-  private config: SessionPoolConfig;
+  private config: SessionPoolOptions;
   private idleTimers = new Map<string, NodeJS.Timeout>();
 
-  constructor(config: SessionPoolConfig) {
+  constructor(config: SessionPoolOptions) {
     super();
     this.config = config;
   }
@@ -74,12 +74,18 @@ export class SessionPool extends EventEmitter {
     // Create session manager for this bot
     const sessionManager = await SessionManager.create(sessionPath);
 
+    // Load pi-respire extension from the workspace
+    const piRespireExtension = await this.loadPiRespireExtension();
+    const extensionFactories = piRespireExtension 
+      ? [piRespireExtension, ...(this.config.extensionFactories || [])]
+      : this.config.extensionFactories || [];
+
     // Create runtime and session
     const result = await createAgentSession({
       sessionManager,
       model: bot.model.provider + '/' + bot.model.modelId,
-      // Load pi-bot extension to provide tools and memory
-      // Extension will be loaded from node_modules or local if installed
+      extensionFactories,
+      // Don't load user extensions or context files
       loadUserExtensions: false,
       loadContextFiles: false,
     });
@@ -230,6 +236,31 @@ export class SessionPool extends EventEmitter {
   }
 
   /**
+   * Abort current bot response
+   */
+  async abortSession(botId: string): Promise<void> {
+    const session = this.sessions.get(botId);
+    if (!session) {
+      throw new Error(`No active session for bot: ${botId}`);
+    }
+
+    // Use SDK's abort method
+    await session.session.abort();
+  }
+
+  /**
+   * Deliver message to bot (for scheduler)
+   */
+  async deliver(botId: string, message: string): Promise<void> {
+    const bot = this.sessions.get(botId);
+    if (!bot) {
+      throw new Error(`Bot session not found: ${botId}`);
+    }
+
+    await bot.session.prompt(message);
+  }
+
+  /**
    * Get session info for a bot
    */
   getSessionInfo(botId: string): SessionInfo | null {
@@ -346,5 +377,19 @@ export class SessionPool extends EventEmitter {
       void this.destroySession(oldest.botId);
     }
     return true;
+  }
+
+  /**
+   * Load pi-respire extension if available
+   */
+  private async loadPiRespireExtension(): Promise<ExtensionFactory | null> {
+    try {
+      // Try to load pi-respire extension from workspace
+      const { default: createExtension } = await import('@pi-bot/pi-respire');
+      return createExtension;
+    } catch (error) {
+      console.warn('pi-respire extension not available:', error);
+      return null;
+    }
   }
 }

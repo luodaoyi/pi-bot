@@ -32,7 +32,6 @@ const MENTION_PATTERN = /@(\w+)/;
 export class GroupManager extends EventEmitter {
   private store: Store;
   private sessionPool: SessionPool;
-  private groups = new Map<string, GroupConfig>();
   private activeRounds = new Set<string>(); // Groups currently running a round
 
   constructor(store: Store, sessionPool: SessionPool) {
@@ -82,9 +81,7 @@ export class GroupManager extends EventEmitter {
       group.seen[memberId] = 0;
     }
 
-    this.groups.set(groupId, group);
-    await this.saveGroups();
-
+    await this.store.createGroup(group);
     this.emit('group_created', { type: 'group_created', group });
 
     return group;
@@ -94,7 +91,7 @@ export class GroupManager extends EventEmitter {
    * Update group settings
    */
   async updateGroup(groupId: string, request: GroupUpdateRequest): Promise<GroupConfig> {
-    const group = this.groups.get(groupId);
+    const group = await this.store.getGroup(groupId);
     if (!group) {
       throw new Error(`Group not found: ${groupId}`);
     }
@@ -144,7 +141,7 @@ export class GroupManager extends EventEmitter {
       group.admin = request.admin;
     }
 
-    await this.saveGroups();
+    await this.store.updateGroup(groupId, group);
     this.emit('group_updated', { type: 'group_updated', group });
 
     return group;
@@ -154,16 +151,14 @@ export class GroupManager extends EventEmitter {
    * Delete a group
    */
   async deleteGroup(groupId: string): Promise<void> {
-    const group = this.groups.get(groupId);
+    const group = await this.store.getGroup(groupId);
     if (!group) {
       throw new Error(`Group not found: ${groupId}`);
     }
 
     // TODO: Clean up hidden sessions for members
 
-    this.groups.delete(groupId);
-    await this.saveGroups();
-
+    await this.store.deleteGroup(groupId);
     this.emit('group_deleted', { type: 'group_deleted', groupId });
   }
 
@@ -173,7 +168,7 @@ export class GroupManager extends EventEmitter {
   async postToGroup(request: PostToGroupRequest): Promise<GroupRoundResult> {
     const { groupId, message, from = 'user' } = request;
 
-    const group = this.groups.get(groupId);
+    const group = await this.store.getGroup(groupId);
     if (!group) {
       throw new Error(`Group not found: ${groupId}`);
     }
@@ -191,6 +186,9 @@ export class GroupManager extends EventEmitter {
 
       // Run a round
       const result = await this.runRound(group);
+
+      // Save updated group
+      await this.store.updateGroup(groupId, group);
 
       return result;
     } finally {
@@ -250,7 +248,7 @@ export class GroupManager extends EventEmitter {
       }
     }
 
-    await this.saveGroups();
+    await this.store.updateGroup(group.id, group);
 
     return {
       groupId: group.id,
@@ -355,7 +353,7 @@ export class GroupManager extends EventEmitter {
     if (!_sessionId) {
       const newSessionId = `${group.id}-${_botId}-${randomUUID().slice(0, 8)}`;
       group.sessions[_botId] = newSessionId;
-      await this.saveGroups();
+      await this.store.updateGroup(group.id, { sessions: group.sessions });
       return newSessionId;
     }
 
@@ -400,22 +398,14 @@ export class GroupManager extends EventEmitter {
   /**
    * Get group by ID
    */
-  getGroup(groupId: string): GroupConfig | null {
-    return this.groups.get(groupId) ?? null;
+  async getGroup(groupId: string): Promise<GroupConfig | null> {
+    return await this.store.getGroup(groupId);
   }
 
   /**
    * List all groups
    */
-  listGroups(): GroupConfig[] {
-    return Array.from(this.groups.values());
-  }
-
-  /**
-   * Save groups to store
-   */
-  private async saveGroups(): Promise<void> {
-    // TODO: Integrate with store
-    // For now, groups are in-memory
+  async listGroups(): Promise<GroupConfig[]> {
+    return await this.store.listGroups();
   }
 }

@@ -29,6 +29,7 @@ export class TeamCoordinator extends EventEmitter {
   private sessionPool: SessionPool;
   private exchanges = new Map<string, Exchange>();
   private questions = new Map<string, PendingQuestion>();
+  private questionResolvers = new Map<string, (answer: string) => void>();
 
   constructor(store: Store, sessionPool: SessionPool) {
     super();
@@ -204,6 +205,13 @@ export class TeamCoordinator extends EventEmitter {
 
     question.answered = true;
 
+    // Resolve the question promise if waiting
+    const resolver = this.questionResolvers.get(questionId);
+    if (resolver) {
+      resolver(answer);
+      this.questionResolvers.delete(questionId);
+    }
+
     // Get bot
     const bot = await this.store.getBot(question.from);
     if (!bot) {
@@ -220,6 +228,23 @@ export class TeamCoordinator extends EventEmitter {
     setTimeout(() => {
       this.questions.delete(questionId);
     }, 60 * 60 * 1000);
+  }
+
+  /**
+   * Wait for question answer (for bot to block on)
+   */
+  async waitForAnswer(questionId: string, timeoutMs = 300000): Promise<string> {
+    return new Promise((resolve, reject) => {
+      const timeout = setTimeout(() => {
+        this.questionResolvers.delete(questionId);
+        reject(new Error(`Question timeout: ${questionId}`));
+      }, timeoutMs);
+
+      this.questionResolvers.set(questionId, (answer: string) => {
+        clearTimeout(timeout);
+        resolve(answer);
+      });
+    });
   }
 
   /**

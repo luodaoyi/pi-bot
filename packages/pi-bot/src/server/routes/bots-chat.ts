@@ -91,7 +91,7 @@ export function setupBotChatRoutes(
     }
 
     try {
-      // TODO: Implement abort in session pool
+      await sessionPool.abortSession(botId);
       return c.json({ success: true, data: { aborted: true } });
     } catch (error) {
       return c.json(
@@ -116,12 +116,19 @@ export function setupBotChatRoutes(
     }
 
     try {
-      // TODO: Read session history from disk
+      const limit = parseInt(c.req.query('limit') ?? '50', 10);
+      const offset = parseInt(c.req.query('offset') ?? '0', 10);
+
+      const { readChatHistory } = await import('../sessions/history.js');
+      const history = await readChatHistory(
+        _config.host.workspace,
+        botId,
+        { limit, offset }
+      );
+
       return c.json({
         success: true,
-        data: {
-          messages: [],
-        },
+        data: history,
       });
     } catch (error) {
       return c.json(

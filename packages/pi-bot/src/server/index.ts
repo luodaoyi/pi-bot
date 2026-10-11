@@ -57,8 +57,8 @@ export async function serve(options: { configPath?: string; dev: boolean }) {
   // Mount all feature routes
   setupRoutes(app, store, config, { sessionPool, teamCoordinator, groupManager });
 
-  // SSE endpoint
-  setupSSE(app, store);
+  // SSE endpoint with team coordinator for questions
+  setupSSE(app, store, teamCoordinator);
 
   // Serve static files (web UI) - TODO
   // app.get('*', serveStatic({ root: './public' }));

@@ -15,12 +15,14 @@ import type {
   SSEEvent,
 } from '@pi-bot/shared';
 
+import type { GroupConfig } from '../groups/types.js';
+
 interface State {
   version: number;
   workspaceId: string;
   mainBotIds: string[];
   bots: Record<string, BotConfig>;
-  groups: Record<string, unknown>; // TODO
+  groups: Record<string, GroupConfig>;
   schedules: unknown[]; // TODO
   secrets: Record<string, unknown>; // TODO
   revision: number;
@@ -180,6 +182,48 @@ export class Store extends EventEmitter {
   }
 
   // ============================================================================
+  // Groups
+  // ============================================================================
+
+  async listGroups(): Promise<GroupConfig[]> {
+    return Object.values(this.state.groups);
+  }
+
+  async getGroup(id: string): Promise<GroupConfig | null> {
+    return this.state.groups[id] ?? null;
+  }
+
+  async createGroup(group: GroupConfig): Promise<GroupConfig> {
+    this.state.groups[group.id] = group;
+    await this.save();
+    this.emit('group_created', { type: 'group_created', group });
+    return group;
+  }
+
+  async updateGroup(id: string, updates: Partial<GroupConfig>): Promise<GroupConfig> {
+    const group = this.state.groups[id];
+    if (!group) {
+      throw new Error(`Group not found: ${id}`);
+    }
+
+    Object.assign(group, updates);
+    await this.save();
+    this.emit('group_updated', { type: 'group_updated', group });
+    return group;
+  }
+
+  async deleteGroup(id: string): Promise<void> {
+    const group = this.state.groups[id];
+    if (!group) {
+      throw new Error(`Group not found: ${id}`);
+    }
+
+    delete this.state.groups[id];
+    await this.save();
+    this.emit('group_deleted', { type: 'group_deleted', id });
+  }
+
+  // ============================================================================
   // Events (type-safe wrapper)
   // ============================================================================
 
@@ -193,11 +237,17 @@ export class Store extends EventEmitter {
     this.on('bot_created', handler);
     this.on('bot_updated', handler);
     this.on('bot_deleted', handler);
+    this.on('group_created', handler);
+    this.on('group_updated', handler);
+    this.on('group_deleted', handler);
 
     return () => {
       this.off('bot_created', handler);
       this.off('bot_updated', handler);
       this.off('bot_deleted', handler);
+      this.off('group_created', handler);
+      this.off('group_updated', handler);
+      this.off('group_deleted', handler);
     };
   }
 }

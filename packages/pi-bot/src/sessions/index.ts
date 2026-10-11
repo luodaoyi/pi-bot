@@ -3,6 +3,7 @@
  */
 
 export { SessionPool } from './pool.js';
+export { readChatHistory, type ChatMessage, type ChatHistory } from './history.js';
 export type {
   SessionInfo,
   SessionPoolConfig,
