@@ -3,7 +3,7 @@
  * 合同测试对照此清单检查真实 Hono router 是否注册了对应 method+path。
  */
 export interface RouteContract {
-  method: 'GET' | 'POST' | 'PATCH' | 'DELETE';
+  method: 'GET' | 'POST' | 'PATCH' | 'PUT' | 'DELETE';
   path: string;
   /** 成功响应 data 中应出现的字段（health 为顶层字段） */
   dataKeys: string[];
@@ -64,7 +64,14 @@ export const CLIENT_ROUTE_CONTRACT: RouteContract[] = [
   { method: 'GET', path: '/api/settings', dataKeys: ['settings'] },
   { method: 'PATCH', path: '/api/settings', dataKeys: ['settings'] },
 
+  { method: 'GET', path: '/api/models', dataKeys: ['models', 'defaultModel', 'defaultThinking'] },
+  { method: 'GET', path: '/api/providers', dataKeys: ['providers'] },
+  { method: 'PUT', path: '/api/providers/:id/api-key', dataKeys: ['configured'] },
+  { method: 'DELETE', path: '/api/providers/:id/auth', dataKeys: ['configured'] },
+  { method: 'POST', path: '/api/providers/:id/oauth/start', dataKeys: ['url', 'flowId'] },
+  { method: 'GET', path: '/api/providers/:id/oauth/:flowId', dataKeys: ['status'] },
+
   { method: 'GET', path: '/api/system/status', dataKeys: ['version', 'respireStatus'] },
-  { method: 'GET', path: '/api/system/models', dataKeys: ['models'] },
+  { method: 'GET', path: '/api/system/models', dataKeys: ['models', 'defaultModel', 'defaultThinking'] },
   { method: 'POST', path: '/api/shutdown', dataKeys: [] },
 ];

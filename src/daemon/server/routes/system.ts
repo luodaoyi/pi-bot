@@ -9,6 +9,7 @@ import type { Hono } from 'hono';
 import type { Config } from '../../config.js';
 import type { Store } from '../../store/index.js';
 import { RespireClient } from '#respire-client/index.js';
+import { handleGetModels } from './models.js';
 
 // Read version from package.json
 // In dist/daemon/server/routes/system.js, __dirname is dist/daemon/server/routes, so go up 4 levels
@@ -54,34 +55,8 @@ export function setupSystemRoutes(app: Hono, store: Store, config: Config) {
     });
   });
 
-  // List available models
-  app.get('/api/system/models', async (c) => {
-    // TODO: Integrate with pi ModelRegistry to list models
-    // For now, return a static list
-    const models = [
-      {
-        provider: 'deepseek',
-        modelId: 'deepseek-chat',
-        name: 'DeepSeek Chat',
-        contextWindow: 64000,
-        supportsVision: false,
-        supportsThinking: false,
-      },
-      {
-        provider: 'deepseek',
-        modelId: 'deepseek-reasoner',
-        name: 'DeepSeek Reasoner',
-        contextWindow: 64000,
-        supportsVision: false,
-        supportsThinking: true,
-      },
-    ];
-
-    return c.json({
-      success: true,
-      data: { models },
-    });
-  });
+  // 与 GET /api/models 相同，保留旧路径作为别名
+  app.get('/api/system/models', handleGetModels);
 
   // Shutdown endpoint
   app.post('/api/shutdown', (c) => {

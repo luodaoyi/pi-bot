@@ -22,6 +22,8 @@ import { setupSecretRoutes } from './secrets.js';
 import { setupUsageRoutes } from './usage.js';
 import { setupMemoryRoutes } from './memory.js';
 import { setupSettingsRoutes } from './settings.js';
+import { setupModelRoutes } from './models.js';
+import { setupProviderRoutes } from './providers.js';
 import type { SettingsStore } from '../../settings/index.js';
 
 export interface RoutesContext {
@@ -44,6 +46,8 @@ export function setupRoutes(
   // Core routes
   setupBotRoutes(app, store, config);
   setupSystemRoutes(app, store, config);
+  setupModelRoutes(app);
+  setupProviderRoutes(app);
 
   // Session and chat routes
   if (context?.sessionPool) {

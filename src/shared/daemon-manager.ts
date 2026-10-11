@@ -120,15 +120,21 @@ export function findPidByPort(port: number): number | null {
     if (plat === 'win32') {
       // Windows: Get-NetTCPConnection or netstat
       try {
-        output = execSync(`powershell -Command "Get-NetTCPConnection -LocalPort ${port} -State Listen | Select-Object -ExpandProperty OwningProcess"`, { encoding: 'utf8' });
+        output = execSync(
+          `powershell -Command "Get-NetTCPConnection -LocalPort ${port} -State Listen | Select-Object -ExpandProperty OwningProcess"`,
+          { encoding: 'utf8', windowsHide: true }
+        );
       } catch {
-        output = execSync(`netstat -ano | findstr :${port}`, { encoding: 'utf8' });
+        output = execSync(`netstat -ano | findstr :${port}`, {
+          encoding: 'utf8',
+          windowsHide: true,
+        });
         const match = output.match(/LISTENING\s+(\d+)/);
         return match ? parseInt(match[1], 10) : null;
       }
     } else {
       // Unix: lsof
-      output = execSync(`lsof -ti:${port}`, { encoding: 'utf8' });
+      output = execSync(`lsof -ti:${port}`, { encoding: 'utf8', windowsHide: true });
     }
     
     const pid = parseInt(output.trim(), 10);
@@ -193,6 +199,7 @@ export function openUrl(url: string): void {
   spawn(cmd, args, {
     detached: true,
     stdio: 'ignore',
+    windowsHide: true,
   }).unref();
 }
 
@@ -217,12 +224,8 @@ export async function startDaemon(port: number = DEFAULT_PORT): Promise<{ pid: n
     stdio: ['ignore', logFd, logFd],
     cwd: piBotHome,
     env: { ...process.env },
+    windowsHide: true,
   };
-  
-  // Windows-specific options
-  if (platform() === 'win32') {
-    spawnOptions.windowsHide = true;
-  }
   
   const child = spawn(process.execPath, [cliPath, 'serve', '--port', port.toString()], spawnOptions);
   

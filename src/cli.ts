@@ -3,6 +3,7 @@
  * CLI entry point
  * Re-exports the daemon CLI
  */
+import './daemon/win-hide.js';
 export * from './daemon/cli.js';
 
 // Import and run CLI if this is the main module
