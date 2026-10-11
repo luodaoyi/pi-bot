@@ -59,21 +59,21 @@ jobs:
           echo "Testing tarball: $TARBALL"
           
           # Extract tarball to temp dir
-          TEST_DIR="$(pwd)/test-package"
-          mkdir -p "$TEST_DIR"
-          tar -xzf "$TARBALL" -C "$TEST_DIR" --strip-components=1
+          mkdir -p test-package
+          tar -xzf "$TARBALL" -C test-package --strip-components=1
+          cd test-package
           
           # Verify Pi manifest and extension exist
-          if [ ! -f "$TEST_DIR/package.json" ]; then
+          if [ ! -f package.json ]; then
             echo "package.json not found"
             exit 1
           fi
           
           # Check for Pi manifest
-          node -p "const pkg = require('$TEST_DIR/package.json'); pkg.pi ? 'Pi manifest found' : process.exit(1)"
+          node -p "const pkg = require('./package.json'); pkg.pi ? 'Pi manifest found' : process.exit(1)"
           
           # Check extension file exists
-          if [ ! -f "$TEST_DIR/dist/respire-extension/index.js" ]; then
+          if [ ! -f dist/respire-extension/index.js ]; then
             echo "Pi extension not found"
             exit 1
           fi
