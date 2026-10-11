@@ -96,7 +96,7 @@ function defaultSettings(): Settings {
     defaultThinking: 'medium',
     loadUserExtensions: false,
     loadContextFiles: false,
-    timezone: 'Asia/Shanghai',
+    timezone: 'UTC',
     workdir: '',
   };
 }

@@ -38,10 +38,9 @@ function attachGuards(page: Page) {
     const url = response.url();
     if (!url.includes('/api')) return;
     if (response.status() >= 400) {
-      // A/C 后端未合并前，新合同路由可能 404；前端必须降级而不是无限加载
-      const pendingContract = /\/api\/(models|providers)(\/|$)/.test(url)
-        || /\/api\/bots\/[^/]+\/sessions/.test(url);
-      if (response.status() === 404 && pendingContract) return;
+      // C 的 /api/models、/api/providers 已在 main；仅会话路由等 A 合并
+      const pendingSessions = /\/api\/bots\/[^/]+\/sessions/.test(url);
+      if (response.status() === 404 && pendingSessions) return;
       apiFailures.push(`${response.status()} ${response.request().method()} ${url}`);
     }
   });
@@ -130,6 +129,7 @@ test.describe('PI-Bot Web GUI E2E (real daemon)', () => {
     await expect(page.getByTestId('chat-input')).toBeVisible();
     await expect(page.getByTestId('session-sidebar')).toBeVisible();
     await expect(page.getByTestId('model-picker')).toBeVisible();
+    await expect(page.locator('[data-testid="model-picker-select"] option').nth(1)).toBeAttached();
     await expect(page.getByTestId('thinking-selector')).toBeVisible();
     await expect(page.getByTestId('session-info')).toBeVisible();
     await guards.assertClean('root/bots');
@@ -201,6 +201,7 @@ test.describe('PI-Bot Web GUI E2E (real daemon)', () => {
     await expect(page.getByText('记忆后端')).toBeVisible();
     await page.getByTestId('settings-tab-providers').click();
     await waitReady(page, 'settings-providers');
+    await expect(page.getByTestId('providers-panel')).toBeVisible();
     await guards.assertClean('settings');
   });
 });

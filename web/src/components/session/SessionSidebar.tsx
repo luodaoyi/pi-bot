@@ -93,7 +93,7 @@ export const SessionSidebar: React.FC<SessionSidebarProps> = ({
                   onClick={() => onSelect(session.id)}
                   className="w-full text-left px-3 py-2"
                 >
-                  <div className="text-sm font-medium text-gray-900 dark:text-white truncate">{session.name}</div>
+                  <div className="text-sm font-medium text-gray-900 dark:text-white truncate">{session.name || session.id}</div>
                   <div className="text-xs text-gray-400 flex justify-between">
                     <span>
                       {session.updatedAt
@@ -105,7 +105,7 @@ export const SessionSidebar: React.FC<SessionSidebarProps> = ({
                 </button>
               )}
               <div className="flex justify-end gap-1 px-2 pb-2">
-                <button type="button" title={t('session.rename')} onClick={() => { setEditingId(session.id); setDraft(session.name); }} className="p-1 text-gray-400 hover:text-gray-700">
+                <button type="button" title={t('session.rename')} onClick={() => { setEditingId(session.id); setDraft(session.name ?? ''); }} className="p-1 text-gray-400 hover:text-gray-700">
                   <Pencil size={12} />
                 </button>
                 <button type="button" data-testid="session-fork" title={t('session.fork')} onClick={() => onFork(session.id)} className="p-1 text-gray-400 hover:text-gray-700">
