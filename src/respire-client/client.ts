@@ -7,6 +7,12 @@ import { randomUUID } from 'node:crypto';
 import { existsSync } from 'node:fs';
 import { spawn } from 'node:child_process';
 import { RespireError } from './errors.js';
+import {
+  assertRpcSuccess,
+  listEntriesFromEnvelope,
+  parseShowDetails,
+  recallEntriesFromEnvelope,
+} from './envelopes.js';
 import type {
   RpcRequest,
   RpcResponse,
@@ -130,15 +136,7 @@ export class RespireClient {
 
   async exec(argv: string[], options?: { id?: string; queueWaitMs?: number }): Promise<RpcResponse> {
     const response = await this.call('cli.exec', ['--json', ...argv], options);
-
-    if (!response.envelope) {
-      throw new RespireError(
-        response.error ?? 'Empty response',
-        (response.code as never) ?? 'unknown',
-        response
-      );
-    }
-
+    assertRpcSuccess(response);
     return response;
   }
 
@@ -212,24 +210,15 @@ export class RespireClient {
     if (options.noRelated) args.push('--no-related');
 
     const response = await this.exec(args);
-    const envelope = response.envelope!;
-
-    if (envelope.status === 'skip') {
-      return {
-        query,
-        count: 0,
-        limit: options.limit ?? 20,
-        details: [],
-      };
-    }
+    const parsed = recallEntriesFromEnvelope(response.envelope!, query);
 
     return {
-      query,
-      count: (envelope.summary?.['count'] as number) ?? 0,
-      limit: (envelope.summary?.['limit'] as number) ?? 20,
+      query: parsed.query,
+      count: parsed.count,
+      limit: options.limit ?? 20,
       project: options.project,
-      details: (envelope.details as RecallResult['details']) ?? [],
-      related: envelope.summary?.['related'] as string[] | undefined,
+      details: parsed.details,
+      related: response.envelope?.related as string[] | undefined,
     };
   }
 
@@ -240,7 +229,7 @@ export class RespireClient {
       return null;
     }
 
-    return (response.envelope?.details as { entry?: MemoryEntry })?.entry ?? null;
+    return parseShowDetails(response.envelope?.details);
   }
 
   async remember(content: string, options: RememberOptions = {}): Promise<RememberResult> {
@@ -282,7 +271,7 @@ export class RespireClient {
     if (options.since) args.push('--since', options.since);
 
     const response = await this.exec(args);
-    return ((response.envelope?.details as { entries?: MemoryEntry[] })?.entries ?? []);
+    return listEntriesFromEnvelope(response.envelope!);
   }
 
   // ============================================================================

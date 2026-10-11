@@ -71,7 +71,7 @@ const DEFAULT_CONFIG: Config = {
     review: false,
   },
   respire: {
-    port: 15169,
+    port: Number(process.env['RSRS_RPC_PORT']) || 15169,
     autostart: true,
     policy: 'full',
     reanchorTokens: 60000,
@@ -99,12 +99,17 @@ export async function loadConfig(configPath?: string): Promise<Config> {
   const defaultHome = envHome || join(homedir(), '.pi-bot');
   const path = configPath ?? join(defaultHome, 'config.toml');
 
+  const envPort = Number(process.env['RSRS_RPC_PORT']);
   const base: Config = {
     ...DEFAULT_CONFIG,
     host: {
       ...DEFAULT_CONFIG.host,
       home: defaultHome,
       workspace: envHome ? join(envHome, 'workspace') : DEFAULT_CONFIG.host.workspace,
+    },
+    respire: {
+      ...DEFAULT_CONFIG.respire,
+      port: Number.isFinite(envPort) && envPort > 0 ? envPort : DEFAULT_CONFIG.respire.port,
     },
   };
 

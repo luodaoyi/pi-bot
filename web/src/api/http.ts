@@ -355,6 +355,8 @@ export class HttpApiClient implements ApiClient {
       available: Boolean(data.available),
       reason: data.available ? undefined : (data.reason || data.error || 'Respire not running'),
       error: data.error,
+      counts: data.counts,
+      status: data.status,
     };
   }
 
@@ -363,6 +365,7 @@ export class HttpApiClient implements ApiClient {
     if (data.query) params.set('query', data.query);
     if (data.scope) params.set('scope', data.scope);
     if (data.limit) params.set('limit', data.limit.toString());
+    if (data.mode) params.set('mode', data.mode);
     const result = await this.request<{
       available?: boolean;
       reason?: string;

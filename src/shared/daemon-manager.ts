@@ -4,6 +4,7 @@ import { homedir, platform } from 'os';
 import { join, dirname } from 'path';
 import { spawn, execSync } from 'child_process';
 import { fileURLToPath } from 'url';
+import { getPackageVersion } from './version.js';
 
 export interface DaemonStatus {
   running: boolean;
@@ -234,86 +235,88 @@ export async function startDaemon(port: number = DEFAULT_PORT): Promise<{ pid: n
   return { pid, port };
 }
 
+export function daemonVersionMatches(running: string | undefined, own: string): boolean {
+  return Boolean(running) && running === own;
+}
+
+export function collectStopPids(input: {
+  force: boolean;
+  filePid: number | null;
+  healthPid?: number;
+  portPid?: number | null;
+}): number[] {
+  const ids = new Set<number>();
+  if (input.filePid) ids.add(input.filePid);
+  if (input.healthPid) ids.add(input.healthPid);
+  if (input.force && input.portPid) ids.add(input.portPid);
+  return [...ids];
+}
+
+async function killPid(pid: number): Promise<boolean> {
+  if (!isProcessRunning(pid)) return false;
+  try {
+    process.kill(pid, 'SIGTERM');
+    await new Promise((resolve) => setTimeout(resolve, 1000));
+    if (isProcessRunning(pid)) {
+      process.kill(pid, 'SIGKILL');
+    }
+    return true;
+  } catch {
+    console.error(`Failed to kill process ${pid}`);
+    return false;
+  }
+}
+
 export async function stopDaemon(force: boolean = false): Promise<boolean> {
   const pid = readPid();
   const port = readPort();
-  
-  // Try to stop via HTTP first (works even without PID file)
   const health = await getHealthInfo(port);
+
   if (health) {
     try {
       const response = await fetch(`http://localhost:${port}/api/shutdown`, {
         method: 'POST',
         signal: AbortSignal.timeout(5000),
       });
-      
       if (response.ok) {
-        await new Promise((resolve) => setTimeout(resolve, 1000));
-        deletePid();
-        deletePort();
-        cleanupLeftoverFiles();
-        return true;
-      }
-    } catch {
-      // Ignore fetch errors, fall through
-    }
-    
-    // If health exists but no PID (legacy daemon), try to find PID by port
-    if (!health.pid && force) {
-      console.log(`Legacy daemon detected, finding PID by port ${port}...`);
-      const portPid = findPidByPort(port);
-      if (portPid && isProcessRunning(portPid)) {
-        console.log(`Found PID ${portPid} on port ${port}, stopping...`);
-        try {
-          process.kill(portPid, 'SIGTERM');
-          await new Promise((resolve) => setTimeout(resolve, 1000));
-          
-          if (isProcessRunning(portPid)) {
-            process.kill(portPid, 'SIGKILL');
-          }
-          
+        await new Promise((resolve) => setTimeout(resolve, 800));
+        if (!(await isDaemonReachable(port))) {
           deletePid();
           deletePort();
           cleanupLeftoverFiles();
           return true;
-        } catch {
-          console.error(`Failed to kill process ${portPid}`);
         }
       }
-    }
-  }
-  
-  // If no PID file and daemon not reachable, nothing to stop
-  if (!pid) {
-    return false;
-  }
-  
-  // Try to kill by PID
-  if (isProcessRunning(pid)) {
-    try {
-      process.kill(pid, 'SIGTERM');
-      await new Promise((resolve) => setTimeout(resolve, 1000));
-      
-      if (isProcessRunning(pid)) {
-        process.kill(pid, 'SIGKILL');
-      }
-      
-      deletePid();
-      deletePort();
-      cleanupLeftoverFiles();
-      return true;
     } catch {
-      deletePid();
-      deletePort();
-      cleanupLeftoverFiles();
-      return false;
+      // HTTP shutdown unsupported on older daemons — fall through to kill
     }
   }
-  
+
+  const portPid = force || !health?.pid ? findPidByPort(port) : null;
+  const candidates = collectStopPids({
+    force: force || !health?.pid,
+    filePid: pid,
+    healthPid: health?.pid,
+    portPid,
+  });
+
+  if (candidates.length === 0) {
+    if (!health && !pid) return false;
+    deletePid();
+    deletePort();
+    cleanupLeftoverFiles();
+    return Boolean(health);
+  }
+
+  let killed = false;
+  for (const candidate of candidates) {
+    killed = (await killPid(candidate)) || killed;
+  }
+
   deletePid();
   deletePort();
   cleanupLeftoverFiles();
-  return false;
+  return killed || Boolean(health);
 }
 
 export async function getDaemonStatus(): Promise<DaemonStatus> {
@@ -341,33 +344,25 @@ export async function getDaemonStatus(): Promise<DaemonStatus> {
 }
 
 export async function ensureDaemon(port: number = DEFAULT_PORT): Promise<{ pid: number; port: number; started: boolean }> {
-  // Check if a daemon is already running on this port
+  const ownVersion = getPackageVersion();
   const health = await getHealthInfo(port);
+  let forcedRestart = false;
   if (health) {
-    const localPid = readPid();
-    
-    // Check if health has PID (beta.4+) or is legacy (beta.0-3)
-    if (!health.pid) {
-      console.error(`Error: Found legacy daemon on port ${port} (version: ${health.version || 'unknown'})`);
-      console.error(`This daemon does not report its PID (pre-beta.4).`);
-      console.error(`Run 'pi-bot stop --force' to stop it, then try again.`);
-      throw new Error(`Legacy daemon on port ${port} - use 'pi-bot stop --force'`);
-    }
-    
-    if (localPid && health.pid === localPid) {
-      // Same daemon, all good
-      return { pid: health.pid, port, started: false };
+    const legacy = !health.pid;
+    const mismatch = !daemonVersionMatches(health.version, ownVersion);
+    if (legacy || mismatch) {
+      console.log(
+        `Found ${legacy ? 'legacy ' : ''}daemon on port ${port} (version: ${health.version || 'unknown'}, wanted: ${ownVersion}). Stopping and restarting...`
+      );
+      await stopDaemon(true);
+      forcedRestart = true;
     } else {
-      // Different daemon (or no PID file)
-      console.error(`Error: Found existing daemon on port ${port} (PID: ${health.pid}, version: ${health.version})`);
-      console.error(`Expected PID: ${localPid || 'none'}`);
-      console.error(`Run 'pi-bot stop --force' to stop the existing daemon first`);
-      throw new Error(`Existing daemon on port ${port} - use 'pi-bot stop --force'`);
+      return { pid: health.pid, port, started: false };
     }
   }
   
   const status = await getDaemonStatus();
-  if (status.running && status.pid) {
+  if (!forcedRestart && status.running && status.pid) {
     return { pid: status.pid, port: status.port, started: false };
   }
   
@@ -378,11 +373,15 @@ export async function ensureDaemon(port: number = DEFAULT_PORT): Promise<{ pid: 
     throw new Error('Failed to start daemon: health check timeout after 30s');
   }
   
-  // Verify the responding daemon
   const newHealth = await getHealthInfo(port);
   if (newHealth && newHealth.pid !== result.pid) {
     console.warn(`Warning: Started daemon with PID ${result.pid} but health check reports PID ${newHealth.pid}`);
     console.warn(`Another daemon may have bound to port ${port} first`);
+  }
+  if (newHealth && !daemonVersionMatches(newHealth.version, ownVersion)) {
+    throw new Error(
+      `Daemon still reports version ${newHealth.version || 'unknown'} after restart (wanted ${ownVersion}). Run 'pi-bot stop --force'.`
+    );
   }
   
   return { ...result, started: true };

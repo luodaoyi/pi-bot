@@ -74,6 +74,20 @@ describe('RespireClient', () => {
     });
   });
 
+  describe('list', () => {
+    it('parses real details[] and does not use Array.entries', async () => {
+      const { LIST_LIMIT_3 } = await import('../../tests/fixtures/respire-envelopes.js');
+      (global.fetch as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
+        ok: true,
+        json: async () => LIST_LIMIT_3,
+      });
+
+      const listed = await client.list({ limit: 3 });
+      expect(listed).toHaveLength(3);
+      expect(listed[0]?.title).toContain('Respire');
+    });
+  });
+
   describe('recall', () => {
     it('should recall memories with titles', async () => {
       (global.fetch as ReturnType<typeof vi.fn>).mockResolvedValueOnce({

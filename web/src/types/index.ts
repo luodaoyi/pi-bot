@@ -51,6 +51,8 @@ export interface MemoryStatus {
   available: boolean;
   reason?: string;
   error?: string;
+  counts?: Record<string, number>;
+  status?: Record<string, unknown>;
 }
 
 export interface MemoryEntry {
@@ -59,6 +61,9 @@ export interface MemoryEntry {
   title?: string;
   scope: 'bot' | 'team';
   botId?: string;
+  kind?: string;
+  project?: string;
+  score?: number;
   importance: 'important' | 'trivial';
   createdAt: string;
   updatedAt: string;

@@ -125,15 +125,18 @@ describe('RespireClient with mock HTTP runtime', () => {
   describe('Recall operations', () => {
     it('should perform recall with titles', async () => {
       const mockResults = [
-        { title: 'memory-1', score: 0.95, text: 'Some memory content' },
-        { title: 'memory-2', score: 0.87, text: 'Another memory' },
+        { id: 'id-1', title: 'memory-1', score: 0.95 },
+        { id: 'id-2', title: 'memory-2', score: 0.87 },
       ];
 
       mockFetch.mockResolvedValueOnce({
         ok: true,
         json: async () => ({
           v: 1,
+          ok: true,
           envelope: {
+            command: 'recall',
+            status: 'ok',
             summary: {
               count: 2,
               limit: 20,
@@ -270,18 +273,19 @@ describe('RespireClient with mock HTTP runtime', () => {
   describe('List operations', () => {
     it('should list memories with metadata', async () => {
       const mockMemories = [
-        { title: 'mem-1', created: '2024-01-01', size: 100 },
-        { title: 'mem-2', created: '2024-01-02', size: 200 },
+        { id: 'mem-1', title: 'mem-1', content: '', created_at: '2024-01-01' },
+        { id: 'mem-2', title: 'mem-2', content: '', created_at: '2024-01-02' },
       ];
 
       mockFetch.mockResolvedValueOnce({
         ok: true,
         json: async () => ({
           v: 1,
+          ok: true,
           envelope: {
-            details: {
-              entries: mockMemories,
-            },
+            command: 'list',
+            status: 'ok',
+            details: mockMemories,
           },
         }),
       });
