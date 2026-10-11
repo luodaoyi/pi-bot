@@ -11,11 +11,13 @@ export * from './http';
 
 /**
  * Create API client instance
- * Uses mock by default for development, can be overridden with env var
+ * Uses HTTP client by default, mock only when VITE_USE_MOCK_API=true
  */
 export function createApiClient(): ApiClient {
-  const useMock = import.meta.env.VITE_USE_MOCK_API !== 'false';
-  const baseUrl = import.meta.env.VITE_API_BASE_URL;
+  // @ts-expect-error - Vite env types
+  const useMock = import.meta.env?.VITE_USE_MOCK_API === 'true';
+  // @ts-expect-error - Vite env types
+  const baseUrl = import.meta.env?.VITE_API_BASE_URL;
 
   if (useMock) {
     console.log('[API] Using mock client for development');

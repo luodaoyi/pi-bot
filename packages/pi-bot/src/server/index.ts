@@ -6,7 +6,9 @@ import { Hono } from 'hono';
 import { cors } from 'hono/cors';
 import { logger } from 'hono/logger';
 import { serve as nodeServe } from '@hono/node-server';
-import { join } from 'node:path';
+import { serveStatic } from '@hono/node-server/serve-static';
+import { join, dirname } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { loadConfig, expandHome } from '../config.js';
 import { createStore } from '../store/index.js';
 import { SessionPool } from '../sessions/index.js';
@@ -121,8 +123,12 @@ export async function serve(options: { configPath?: string; dev: boolean }) {
   // SSE endpoint
   setupSSE(app, store);
 
-  // Serve static files (web UI) - TODO
-  // app.get('*', serveStatic({ root: './public' }));
+  // Serve static files (web UI)
+  const __dirname = dirname(fileURLToPath(import.meta.url));
+  const webDistPath = join(__dirname, '../../web/dist');
+  
+  app.use('/*', serveStatic({ root: webDistPath }));
+  app.get('*', serveStatic({ path: join(webDistPath, 'index.html') }));
 
   // Start server
   const [host, portStr] = config.host.listen.split(':');

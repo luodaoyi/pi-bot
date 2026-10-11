@@ -51,6 +51,7 @@
     ]
   },
   "dependencies": {
+    "@hono/node-server": "^2.1.4",
     "@types/better-sqlite3": "^9.6.0",
     "better-sqlite3": "^13.0.3",
     "croner": "^10.0.1"
