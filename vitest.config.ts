@@ -1,10 +1,13 @@
 import { defineConfig } from 'vitest/config';
+import path from 'path';
 
 export default defineConfig({
   test: {
     globals: true,
-    environment: 'node',
-    include: ['src/**/*.test.ts'],
+    include: ['src/**/*.test.ts', 'web/src/**/*.test.ts'],
+    environmentMatchGlobs: [
+      ['web/src/**/*.test.ts', 'jsdom'],
+    ],
   },
   resolve: {
     alias: {
@@ -12,6 +15,7 @@ export default defineConfig({
       '#respire-client': '/workspace/src/respire-client',
       '#respire-extension': '/workspace/src/respire-extension',
       '#daemon': '/workspace/src/daemon',
+      '@': path.resolve(__dirname, './web/src'),
     },
   },
 });
