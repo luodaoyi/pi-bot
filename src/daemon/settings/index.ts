@@ -8,15 +8,18 @@ import {
   DEFAULT_GUI_SETTINGS,
   defaultTimezone,
   THINKING_LEVELS,
+  TOOL_DISPLAY_MODES,
   type GuiSettings,
   type SettingsModelRef,
   type ThinkingLevelSetting,
+  type ToolDisplayMode,
 } from '#shared/index.js';
 
 const LANGUAGES = new Set(['zh-CN', 'en-US']);
 const THEMES = new Set(['light', 'dark', 'auto']);
 const MEMORY_BACKENDS = new Set(['respire', 'markdown', 'off']);
 const THINKING = new Set<string>(THINKING_LEVELS);
+const TOOL_DISPLAY = new Set<string>(TOOL_DISPLAY_MODES);
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return Boolean(value) && typeof value === 'object' && !Array.isArray(value);
@@ -156,6 +159,12 @@ export class SettingsStore {
         throw new Error('workdir must be a non-empty string');
       }
       next.workdir = patch.workdir.trim();
+    }
+    if (patch.toolDisplay !== undefined) {
+      if (!TOOL_DISPLAY.has(patch.toolDisplay)) {
+        throw new Error(`toolDisplay must be one of ${TOOL_DISPLAY_MODES.join(', ')}`);
+      }
+      next.toolDisplay = patch.toolDisplay as ToolDisplayMode;
     }
 
     this.settings = next;

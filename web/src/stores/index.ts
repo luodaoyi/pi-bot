@@ -9,6 +9,7 @@ import type {
   SessionStats,
   SessionSummary,
   ThinkingLevel,
+  ToolDisplayMode,
 } from '@/api/types';
 import { emptySessionStats } from '@/api/types';
 import { isNotImplemented } from '@/api/normalize';
@@ -24,6 +25,7 @@ interface AppState {
   models: PiModel[];
   defaultModel: ModelRef | null;
   defaultThinking: ThinkingLevel | null;
+  toolDisplay: ToolDisplayMode;
   sessionsSupported: boolean;
   loadBots: () => Promise<void>;
   selectBot: (id: string) => Promise<void>;
@@ -58,22 +60,73 @@ interface AppState {
   sessionLoading: boolean;
   error: string | null;
   setError: (error: string | null) => void;
+  setToolDisplay: (mode: ToolDisplayMode) => void;
 }
 
 let stopEvents: (() => void) | null = null;
+
+function applySessionMeta(state: AppState, event: { type?: string; botId?: string; sessionId?: string; session?: SessionSummary }): Partial<AppState> | null {
+  if (event.type !== 'session.created' && event.type !== 'session.updated') return null;
+  if (event.botId && state.selectedBotId && event.botId !== state.selectedBotId) return null;
+  const incoming = event.session;
+  if (!incoming && !event.sessionId) return null;
+  const id = incoming?.id ?? event.sessionId!;
+  const existing = state.sessions.find((s) => s.id === id);
+  const next: SessionSummary = {
+    id,
+    name: incoming?.name ?? existing?.name,
+    createdAt: incoming?.createdAt ?? existing?.createdAt ?? new Date().toISOString(),
+    updatedAt: incoming?.updatedAt ?? new Date().toISOString(),
+    messageCount: incoming?.messageCount ?? existing?.messageCount ?? 0,
+    model: incoming?.model ?? existing?.model ?? null,
+    thinking: incoming?.thinking ?? existing?.thinking ?? null,
+    isActive: incoming?.isActive ?? existing?.isActive ?? id === state.activeSessionId,
+  };
+  const sessions = existing
+    ? state.sessions.map((s) => (s.id === id ? { ...s, ...next } : s))
+    : [next, ...state.sessions];
+  sessions.sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
+  return { sessions };
+}
 
 function attachEvents(get: () => AppState, set: (partial: Partial<AppState>) => void) {
   if (stopEvents) return;
   stopEvents = api.subscribeEvents((event) => {
     const state = get();
+    const meta = applySessionMeta(state, event);
+    if (meta) {
+      set(meta);
+      return;
+    }
     if (event.botId && state.selectedBotId && event.botId !== state.selectedBotId) return;
-    if (event.sessionId && state.activeSessionId && event.sessionId !== state.activeSessionId) return;
+    if (event.sessionId && state.activeSessionId && event.sessionId !== state.activeSessionId) {
+      if (event.type === 'bot.message_end' || event.type === 'bot.message_start') {
+        const sessions = state.sessions.map((s) =>
+          s.id === event.sessionId
+            ? {
+                ...s,
+                messageCount: s.messageCount + (event.role === 'assistant' || event.type === 'bot.message_end' ? 1 : 0),
+                updatedAt: new Date().toISOString(),
+              }
+            : s
+        );
+        set({ sessions });
+      }
+      return;
+    }
     const chat = applyBotEvent(state.chat, event);
     const patch: Partial<AppState> = { chat };
     if (event.stats) {
       patch.sessionDetail = state.sessionDetail
         ? { ...state.sessionDetail, stats: event.stats }
         : state.sessionDetail;
+    }
+    if (event.type === 'bot.message_end' || event.type === 'bot.message_start') {
+      patch.sessions = state.sessions.map((s) =>
+        s.id === (event.sessionId || state.activeSessionId)
+          ? { ...s, messageCount: Math.max(s.messageCount, chat.messages.length), updatedAt: new Date().toISOString() }
+          : s
+      );
     }
     set(patch);
   });
@@ -89,6 +142,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   models: [],
   defaultModel: null,
   defaultThinking: null,
+  toolDisplay: 'collapsed',
   sessionsSupported: true,
   sidebarOpen: true,
   loading: false,
@@ -102,6 +156,9 @@ export const useAppStore = create<AppState>((set, get) => ({
       const botsArray = Array.isArray(bots) ? bots : [];
       set({ bots: botsArray, loading: false });
       void get().loadModels();
+      void api.getSettings().then((settings) => {
+        set({ toolDisplay: settings.toolDisplay ?? 'collapsed' });
+      }).catch(() => undefined);
       if (!get().selectedBotId && botsArray.length > 0) {
         const chief = botsArray.find((b) => b.isMain || b.name === 'Chief') ?? botsArray[0];
         await get().selectBot(chief.id);
@@ -338,6 +395,10 @@ export const useAppStore = create<AppState>((set, get) => ({
 
   setError: (error: string | null) => {
     set({ error });
+  },
+
+  setToolDisplay: (mode) => {
+    set({ toolDisplay: mode });
   },
 }));
 

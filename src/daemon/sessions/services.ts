@@ -9,6 +9,7 @@ import {
   createAgentSessionServices,
   getAgentDir,
   type AgentSessionServices,
+  type InlineExtension,
   type ModelRuntime,
 } from '@earendil-works/pi-coding-agent';
 import { getModelRuntime } from '../models/runtime.js';
@@ -19,6 +20,7 @@ export interface SharedServicesOptions {
   loadContextFiles: boolean;
   agentDir?: string;
   modelRuntime?: ModelRuntime;
+  extensionFactories?: InlineExtension[];
 }
 
 let shared: AgentSessionServices | undefined;
@@ -30,6 +32,7 @@ function cacheKey(options: SharedServicesOptions): string {
     options.agentDir ?? '',
     options.loadUserExtensions ? '1' : '0',
     options.loadContextFiles ? '1' : '0',
+    options.extensionFactories?.length ? `ext${options.extensionFactories.length}` : '',
   ].join('|');
 }
 
@@ -61,6 +64,9 @@ export async function getSharedAgentServices(
     resourceLoaderOptions: {
       noExtensions: !options.loadUserExtensions,
       noContextFiles: !options.loadContextFiles,
+      ...(options.extensionFactories?.length
+        ? { extensionFactories: options.extensionFactories }
+        : {}),
     },
   });
 

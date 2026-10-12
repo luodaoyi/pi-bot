@@ -17,6 +17,8 @@ import type {
 export interface SchedulerOptions {
   storePath: string;
   onTrigger: (schedule: ScheduleConfig) => Promise<void>;
+  /** 创建任务时未指定 timezone 则用这个（用户设置时区，不是 UTC） */
+  getDefaultTimezone?: () => string;
 }
 
 interface ScheduleState {
@@ -28,11 +30,13 @@ export class Scheduler {
   private jobs = new Map<string, Cron>();
   private storePath: string;
   private onTrigger: (schedule: ScheduleConfig) => Promise<void>;
+  private getDefaultTimezone?: () => string;
   private initialized = false;
 
   constructor(options: SchedulerOptions) {
     this.storePath = options.storePath;
     this.onTrigger = options.onTrigger;
+    this.getDefaultTimezone = options.getDefaultTimezone;
   }
 
   async init(): Promise<void> {
@@ -87,13 +91,19 @@ export class Scheduler {
     const id = `sch-${randomUUID().slice(0, 8)}`;
     const now = new Date().toISOString();
 
+    const timezone =
+      (request.timezone && request.timezone.trim()) ||
+      this.getDefaultTimezone?.() ||
+      'UTC';
+
     const schedule: ScheduleConfig = {
       id,
       botId: request.botId,
+      name: request.name?.trim() || undefined,
       prompt: request.prompt,
       timeType: request.timeType,
       time: request.time,
-      timezone: request.timezone || 'UTC',
+      timezone,
       missedPolicy: request.missedPolicy || 'run-once',
       enabled: true,
       created: now,
@@ -121,6 +131,7 @@ export class Scheduler {
 
     // Update fields
     if (request.enabled !== undefined) schedule.enabled = request.enabled;
+    if (request.name !== undefined) schedule.name = request.name.trim() || undefined;
     if (request.prompt !== undefined) schedule.prompt = request.prompt;
     if (request.time !== undefined) schedule.time = request.time;
     if (request.timezone !== undefined) schedule.timezone = request.timezone;

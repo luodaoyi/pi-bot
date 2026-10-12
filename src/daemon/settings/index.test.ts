@@ -25,6 +25,15 @@ describe('SettingsStore', () => {
     expect(settings.loadContextFiles).toBe(false);
     expect(settings.workdir).toBe(join(tmp, 'workspace'));
     expect(settings.timezone).toBeTruthy();
+    expect(settings.toolDisplay).toBe('collapsed');
+  });
+
+  it('persists toolDisplay', async () => {
+    const store = await createSettingsStore(tmp);
+    await store.update({ toolDisplay: 'hidden' });
+    expect(store.get().toolDisplay).toBe('hidden');
+    await store.update({ toolDisplay: 'expanded' });
+    expect(store.get().toolDisplay).toBe('expanded');
   });
 
   it('persists defaultModel null and a concrete model', async () => {

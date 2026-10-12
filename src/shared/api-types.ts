@@ -411,6 +411,8 @@ export type SSEEvent =
   | { type: 'bot_updated'; bot: BotConfig }
   | { type: 'bot_deleted'; id: string }
   | { type: 'system'; message: string }
+  | { type: 'session.created'; botId: string; sessionId?: string; session?: ChatSessionSummary }
+  | { type: 'session.updated'; botId: string; sessionId: string; session?: ChatSessionSummary }
   | BotSseEvent;
 
 export interface MessageUpdateData {

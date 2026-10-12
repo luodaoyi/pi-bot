@@ -9,6 +9,7 @@ import { SettingsView } from './views/SettingsView';
 import { GroupsView } from './views/GroupsView';
 import { SecretsView } from './views/SecretsView';
 import { UsageView } from './views/UsageView';
+import { E2EToolGroupView } from './views/E2EToolGroupView';
 
 function App() {
   return (
@@ -24,6 +25,7 @@ function App() {
             <Route path="/secrets" element={<PageErrorBoundary pageName="密钥"><SecretsView /></PageErrorBoundary>} />
             <Route path="/usage" element={<PageErrorBoundary pageName="用量"><UsageView /></PageErrorBoundary>} />
             <Route path="/settings" element={<PageErrorBoundary pageName="设置"><SettingsView /></PageErrorBoundary>} />
+            <Route path="/__e2e__/tool-group" element={<E2EToolGroupView />} />
           </Routes>
         </Layout>
       </BrowserRouter>

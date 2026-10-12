@@ -193,6 +193,8 @@ test.describe('PI-Bot Web GUI E2E (real daemon)', () => {
     await expect(page.getByText('设置').first()).toBeVisible();
     await expect(page.getByRole('button', { name: '保存' })).toBeVisible();
     await expect(page.getByTestId('settings-tab-general')).toBeVisible();
+    await expect(page.getByTestId('settings-tool-display')).toBeVisible();
+    await expect(page.getByTestId('settings-tool-display')).toHaveValue('collapsed');
     await page.getByTestId('settings-tab-models').click();
     await expect(page.getByTestId('settings-default-model')).toBeVisible();
     await page.getByTestId('settings-tab-sessions').click();
@@ -203,5 +205,23 @@ test.describe('PI-Bot Web GUI E2E (real daemon)', () => {
     await waitReady(page, 'settings-providers');
     await expect(page.getByTestId('providers-panel')).toBeVisible();
     await guards.assertClean('settings');
+
+    await page.goto(`${BASE_URL}/__e2e__/tool-group`);
+    await waitReady(page, 'tool-group');
+    const group = page.getByTestId('tool-group');
+    await expect(group).toBeVisible();
+    await expect(group).toHaveAttribute('data-open', 'false');
+    await expect(group).toContainText('已执行 3 个工具');
+    await expect(group).toContainText('bash ×2');
+    await expect(page.getByTestId('tool-group-list')).toHaveCount(0);
+    await expect(page.getByTestId('created-session-link')).toBeVisible();
+    await page.screenshot({ path: join(SCREEN_DIR, 'tool-group-collapsed.png'), fullPage: true });
+    await page.getByTestId('tool-group-toggle').click();
+    await expect(group).toHaveAttribute('data-open', 'true');
+    await expect(page.getByTestId('tool-group-list')).toBeVisible();
+    await expect(page.getByTestId('tool-card')).toHaveCount(3);
+    await expect(page.getByText('structuredContent')).toHaveCount(0);
+    await page.screenshot({ path: join(SCREEN_DIR, 'tool-group-expanded.png'), fullPage: true });
+    await guards.assertClean('tool-group');
   });
 });

@@ -86,10 +86,11 @@ function mapSchedule(raw: Record<string, unknown>): ScheduledTask {
     every: 'interval',
     cron: 'interval',
   };
-  const prompt = String(raw['prompt'] ?? '');
+  const prompt = String(raw['prompt'] ?? raw['message'] ?? '');
+  const name = String(raw['name'] ?? '').trim() || prompt.slice(0, 40) || String(raw['id'] ?? 'task');
   return {
     id: String(raw['id'] ?? ''),
-    name: prompt.slice(0, 40) || String(raw['id'] ?? 'task'),
+    name,
     targetType: 'bot',
     targetId: String(raw['botId'] ?? ''),
     message: prompt,
@@ -115,9 +116,11 @@ function toDaemonSchedule(data: CreateScheduleRequest): Record<string, unknown> 
   };
   return {
     botId: data.targetId,
-    prompt: data.name && data.message ? `${data.name}: ${data.message}` : (data.message || data.name),
+    name: data.name,
+    prompt: data.message || data.name,
     timeType: typeMap[data.schedule.type] ?? 'daily',
     time: data.schedule.time || (data.schedule.type === 'interval' ? `${data.schedule.interval ?? 60}m` : '09:00'),
+    timezone: (data as { timezone?: string }).timezone,
   };
 }
 

@@ -10,6 +10,7 @@ import type {
   ThinkingLevel,
 } from '#shared/index.js';
 import type { AgentSessionServices, ModelRuntime } from '@earendil-works/pi-coding-agent';
+import type { PibotHost } from '../pibot-tools/index.js';
 
 export interface SessionInfo {
   botId: string;
@@ -18,6 +19,7 @@ export interface SessionInfo {
   lastActive: number;
   status: 'idle' | 'active' | 'settling';
   messageCount: number;
+  hop: number;
 }
 
 export interface SessionPoolConfig {
@@ -31,6 +33,8 @@ export interface SessionPoolConfig {
   services?: AgentSessionServices;
   modelRuntime?: ModelRuntime;
   agentDir?: string;
+  /** 注入 pibot_* 自管理工具（daemon 启动后 setHost） */
+  pibotHost?: PibotHost;
 }
 
 export interface SessionPoolStats {
@@ -63,11 +67,16 @@ export interface DeliveryOptions {
   sessionId?: string;
 }
 
+export interface StartChatOptions {
+  hop?: number;
+}
+
 /**
  * Session event types
  */
 export type SessionEvent =
-  | { type: 'session_created'; botId: string; sessionId?: string }
+  | { type: 'session_created'; botId: string; sessionId?: string; session?: ChatSessionSummary }
+  | { type: 'session_updated'; botId: string; sessionId: string; session?: ChatSessionSummary }
   | { type: 'session_destroyed'; botId: string; sessionId?: string }
   | { type: 'session_idle'; botId: string }
   | { type: 'message_start'; botId: string; messageId: string }

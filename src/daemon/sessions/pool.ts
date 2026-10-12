@@ -34,10 +34,16 @@ import type {
   SessionInfo,
   SessionEvent,
   DeliveryOptions,
+  StartChatOptions,
   BotSession,
 } from './types.js';
-
-const MAX_HOPS = 6;
+import {
+  MAX_HOPS,
+  createPibotContext,
+  createPibotPromptExtension,
+  createPibotToolDefinitions,
+  type PibotHost,
+} from '../pibot-tools/index.js';
 
 function newSessionId(): string {
   return randomUUID().replace(/-/g, '').slice(0, 12);
@@ -49,12 +55,20 @@ export class SessionPool extends EventEmitter {
   private idleTimers = new Map<string, NodeJS.Timeout>();
   private index: SessionIndexStore;
   private services: AgentSessionServices | undefined;
+  private pibotHost: PibotHost | undefined;
+  private currentToolCtx: { botId: string; sessionId: string } | null = null;
+  private pendingMeta = new Set<Promise<void>>();
 
   constructor(config: SessionPoolConfig) {
     super();
     this.config = config;
     this.index = new SessionIndexStore(config.sessionDir);
     this.services = config.services;
+    this.pibotHost = config.pibotHost;
+  }
+
+  setHost(host: PibotHost): void {
+    this.pibotHost = host;
   }
 
   private runtimeKey(botId: string, sessionId: string): string {
@@ -80,6 +94,7 @@ export class SessionPool extends EventEmitter {
       loadContextFiles: this.config.loadContextFiles ?? false,
       agentDir: this.config.agentDir,
       modelRuntime: this.config.modelRuntime,
+      extensionFactories: [createPibotPromptExtension(() => this.liveToolContext())],
     });
     this.services = services;
     return services;
@@ -119,7 +134,7 @@ export class SessionPool extends EventEmitter {
         name: meta.name,
         createdAt: meta.createdAt,
         updatedAt: meta.updatedAt,
-        messageCount: 0,
+        messageCount: meta.messageCount ?? 0,
         model: meta.model ?? normalizeBotModel(bot.model),
         thinking: meta.thinking ?? normalizeThinking(bot.thinking) ?? null,
         isActive: index.activeId === meta.id,
@@ -129,16 +144,27 @@ export class SessionPool extends EventEmitter {
     for (const info of listed) {
       const existing = byId.get(info.id);
       const opened = this.readSessionMeta(cwd, sessionDir, info.path, info.id);
+      const listedUpdated = (info.modified ?? new Date()).toISOString();
+      const updatedAt =
+        existing && existing.updatedAt > listedUpdated ? existing.updatedAt : listedUpdated;
       byId.set(info.id, {
         id: info.id,
-        name: info.name ?? existing?.name,
-        createdAt: (info.created ?? new Date()).toISOString(),
-        updatedAt: (info.modified ?? new Date()).toISOString(),
-        messageCount: info.messageCount,
+        name: existing?.name ?? info.name,
+        createdAt: existing?.createdAt ?? (info.created ?? new Date()).toISOString(),
+        updatedAt,
+        messageCount: Math.max(info.messageCount ?? 0, existing?.messageCount ?? 0),
         model: opened.model ?? existing?.model ?? normalizeBotModel(bot.model),
         thinking: opened.thinking ?? existing?.thinking ?? normalizeThinking(bot.thinking) ?? null,
         isActive: index.activeId === info.id,
       });
+    }
+
+    for (const summary of byId.values()) {
+      const live = this.runtimes.get(this.runtimeKey(bot.id, summary.id));
+      if (!live) continue;
+      summary.messageCount = Math.max(summary.messageCount, live.info.messageCount);
+      const liveUpdated = new Date(live.info.lastActive).toISOString();
+      if (liveUpdated > summary.updatedAt) summary.updatedAt = liveUpdated;
     }
 
     return Array.from(byId.values()).sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
@@ -149,13 +175,25 @@ export class SessionPool extends EventEmitter {
     const now = new Date().toISOString();
     const thinking = normalizeThinking(bot.thinking);
     const model = normalizeBotModel(bot.model);
+    const summary: ChatSessionSummary = {
+      id,
+      name: name ?? bot.name,
+      createdAt: now,
+      updatedAt: now,
+      messageCount: 0,
+      model,
+      thinking,
+      isActive: true,
+    };
+
     await this.index.upsert(
       bot.id,
       {
         id,
-        name: name ?? bot.name,
+        name: summary.name,
         createdAt: now,
         updatedAt: now,
+        messageCount: 0,
         model,
         thinking,
       },
@@ -166,18 +204,10 @@ export class SessionPool extends EventEmitter {
       type: 'session_created',
       botId: bot.id,
       sessionId: id,
+      session: summary,
     } as SessionEvent);
 
-    return {
-      id,
-      name: name ?? bot.name,
-      createdAt: now,
-      updatedAt: now,
-      messageCount: 0,
-      model,
-      thinking,
-      isActive: true,
-    };
+    return summary;
   }
 
   async getBotSession(bot: BotConfig, sessionId: string): Promise<ChatSessionDetail> {
@@ -339,17 +369,26 @@ export class SessionPool extends EventEmitter {
   async startChat(
     bot: BotConfig,
     message: string,
-    sessionId?: string
+    sessionId?: string,
+    options: StartChatOptions = {}
   ): Promise<{ sessionId: string; runId: string }> {
     const sid = sessionId ?? (await this.ensureActiveSessionId(bot));
     if (sessionId) {
       await this.index.setActive(bot.id, sid);
     }
 
-    const runtime = await this.ensureRuntime(bot, sid);
+    const hop = options.hop ?? 0;
+    if (hop > MAX_HOPS) {
+      throw new Error(`Message hop limit exceeded (${MAX_HOPS})`);
+    }
+
+    const runtime = await this.ensureRuntime(bot, sid, hop);
     const runId = randomUUID();
     runtime.runId = runId;
+    runtime.info.hop = hop;
     this.touchRuntime(bot.id, sid);
+    this.currentToolCtx = { botId: bot.id, sessionId: sid };
+    void this.bumpSessionMeta(bot.id, sid);
 
     // Subscription is installed in ensureRuntime BEFORE prompt.
     void runtime.session.prompt(message).catch((error) => {
@@ -387,7 +426,8 @@ export class SessionPool extends EventEmitter {
     }
 
     const sid = options.sessionId ?? (await this.ensureActiveSessionId(bot));
-    const runtime = await this.ensureRuntime(bot, sid);
+    const runtime = await this.ensureRuntime(bot, sid, hop);
+    runtime.info.hop = hop;
 
     let formattedMessage = message;
     if (options.from && options.from !== 'user') {
@@ -395,6 +435,56 @@ export class SessionPool extends EventEmitter {
     }
 
     await runtime.session.prompt(formattedMessage);
+  }
+
+  async getLatestAssistantText(bot: BotConfig, sessionId: string): Promise<string> {
+    const detail = await this.getBotSession(bot, sessionId);
+    for (let i = detail.messages.length - 1; i >= 0; i--) {
+      const message = detail.messages[i] as { role?: string };
+      if (message?.role === 'assistant') {
+        return extractText(message);
+      }
+    }
+    return '';
+  }
+
+  async waitForAssistant(bot: BotConfig, sessionId: string, timeoutMs: number): Promise<string> {
+    const live = this.runtimes.get(this.runtimeKey(bot.id, sessionId));
+    const busy = live && (live.info.status === 'active' || live.info.status === 'settling');
+    if (!busy) {
+      const text = await this.getLatestAssistantText(bot, sessionId);
+      if (text) return text;
+    }
+
+    return new Promise<string>((resolve, reject) => {
+      const timer = setTimeout(() => {
+        cleanup();
+        void this.getLatestAssistantText(bot, sessionId).then((text) => {
+          if (text) resolve(text);
+          else reject(new Error(`Timeout waiting for session ${sessionId}`));
+        }, reject);
+      }, timeoutMs);
+
+      const onEvent = (payload: SessionEvent) => {
+        if (payload.type !== 'bot_event') return;
+        const ev = payload.event;
+        if (ev.sessionId !== sessionId) return;
+        if (ev.type === 'bot.turn_end') {
+          cleanup();
+          void this.getLatestAssistantText(bot, sessionId).then(resolve, reject);
+        } else if (ev.type === 'bot.error') {
+          cleanup();
+          reject(new Error(String(ev.error ?? 'session error')));
+        }
+      };
+
+      const cleanup = () => {
+        clearTimeout(timer);
+        this.off('bot_event', onEvent);
+      };
+
+      this.on('bot_event', onEvent);
+    });
   }
 
   getSessionInfo(botId: string): SessionInfo | null {
@@ -426,8 +516,68 @@ export class SessionPool extends EventEmitter {
   }
 
   async destroy(): Promise<void> {
+    await Promise.allSettled(this.pendingMeta);
     const keys = Array.from(this.runtimes.values());
     await Promise.all(keys.map((s) => this.destroyRuntime(s.botId, s.sessionId)));
+    await Promise.allSettled(this.pendingMeta);
+  }
+
+  private liveToolContext() {
+    if (!this.pibotHost) return undefined;
+    const key = this.currentToolCtx;
+    if (!key) return undefined;
+    const live = this.runtimes.get(this.runtimeKey(key.botId, key.sessionId));
+    return this.toolContextFor(key.botId, key.sessionId, live?.info.hop ?? 0);
+  }
+
+  private toolContextFor(botId: string, sessionId: string, fallbackHop: number) {
+    if (!this.pibotHost) {
+      throw new Error('pibot host not configured');
+    }
+    const ctx = createPibotContext(this.pibotHost, botId, sessionId, fallbackHop);
+    Object.defineProperty(ctx, 'currentHop', {
+      get: () => this.runtimes.get(this.runtimeKey(botId, sessionId))?.info.hop ?? fallbackHop,
+      enumerable: true,
+    });
+    return ctx;
+  }
+
+  private async bumpSessionMeta(botId: string, sessionId: string): Promise<void> {
+    const task = this.writeSessionMeta(botId, sessionId).catch((error) => {
+      console.warn('[session] failed to persist session meta:', error);
+    });
+    this.pendingMeta.add(task);
+    try {
+      await task;
+    } finally {
+      this.pendingMeta.delete(task);
+    }
+  }
+
+  private async writeSessionMeta(botId: string, sessionId: string): Promise<void> {
+    const index = await this.index.load(botId);
+    const meta = index.sessions[sessionId];
+    if (!meta) return;
+    const live = this.runtimes.get(this.runtimeKey(botId, sessionId));
+    const now = new Date().toISOString();
+    meta.updatedAt = now;
+    meta.messageCount = live?.info.messageCount ?? meta.messageCount ?? 0;
+    await this.index.save(botId, index);
+    this.emit('session_updated', {
+      type: 'session_updated',
+      botId,
+      sessionId,
+      session: {
+        id: sessionId,
+        name: meta.name,
+        createdAt: meta.createdAt,
+        updatedAt: now,
+        messageCount: meta.messageCount ?? 0,
+        model: meta.model ?? null,
+        thinking: meta.thinking ?? null,
+        isActive: index.activeId === sessionId,
+      },
+    } as SessionEvent);
   }
 
   private findRuntimeForBot(botId: string): BotSession | undefined {
@@ -437,10 +587,11 @@ export class SessionPool extends EventEmitter {
     return undefined;
   }
 
-  private async ensureRuntime(bot: BotConfig, sessionId: string): Promise<BotSession> {
+  private async ensureRuntime(bot: BotConfig, sessionId: string, hop = 0): Promise<BotSession> {
     const key = this.runtimeKey(bot.id, sessionId);
     const existing = this.runtimes.get(key);
     if (existing) {
+      existing.info.hop = hop;
       this.touchRuntime(bot.id, sessionId);
       return existing;
     }
@@ -454,10 +605,10 @@ export class SessionPool extends EventEmitter {
       }
     }
 
-    return this.createRuntime(bot, sessionId);
+    return this.createRuntime(bot, sessionId, hop);
   }
 
-  private async createRuntime(bot: BotConfig, sessionId: string): Promise<BotSession> {
+  private async createRuntime(bot: BotConfig, sessionId: string, hop = 0): Promise<BotSession> {
     const cwd = this.botWorkdir(bot.id);
     const sessionDir = this.botSessionDir(bot.id);
     await mkdir(cwd, { recursive: true });
@@ -473,15 +624,21 @@ export class SessionPool extends EventEmitter {
       ? SessionManager.open(existingFile, sessionDir, cwd)
       : SessionManager.create(cwd, sessionDir, { id: sessionId });
 
+    const customTools = this.pibotHost
+      ? createPibotToolDefinitions(this.toolContextFor(bot.id, sessionId, hop))
+      : [];
+
     const result = await createAgentSessionFromServices({
       services,
       sessionManager,
       ...(model ? { model } : {}),
       ...(thinking ? { thinkingLevel: thinking } : {}),
+      ...(customTools.length ? { customTools } : {}),
     });
 
     const session = result.session;
-    session.setSessionName(bot.name);
+    const indexMeta = (await this.index.load(bot.id)).sessions[sessionId];
+    session.setSessionName(indexMeta?.name ?? bot.name);
 
     const now = Date.now();
     const botSession: BotSession = {
@@ -496,6 +653,7 @@ export class SessionPool extends EventEmitter {
         lastActive: now,
         status: 'idle',
         messageCount: 0,
+        hop,
       },
     };
 
@@ -573,6 +731,7 @@ export class SessionPool extends EventEmitter {
         case 'message_end': {
           botSession.info.messageCount++;
           const text = extractText(event.message);
+          void this.bumpSessionMeta(botId, sessionId);
           this.emit('message_end', {
             type: 'message_end',
             botId,
