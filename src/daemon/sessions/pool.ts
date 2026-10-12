@@ -57,6 +57,7 @@ export class SessionPool extends EventEmitter {
   private services: AgentSessionServices | undefined;
   private pibotHost: PibotHost | undefined;
   private currentToolCtx: { botId: string; sessionId: string } | null = null;
+  private pendingMeta = new Set<Promise<void>>();
 
   constructor(config: SessionPoolConfig) {
     super();
@@ -515,8 +516,10 @@ export class SessionPool extends EventEmitter {
   }
 
   async destroy(): Promise<void> {
+    await Promise.allSettled(this.pendingMeta);
     const keys = Array.from(this.runtimes.values());
     await Promise.all(keys.map((s) => this.destroyRuntime(s.botId, s.sessionId)));
+    await Promise.allSettled(this.pendingMeta);
   }
 
   private liveToolContext() {
@@ -540,6 +543,18 @@ export class SessionPool extends EventEmitter {
   }
 
   private async bumpSessionMeta(botId: string, sessionId: string): Promise<void> {
+    const task = this.writeSessionMeta(botId, sessionId).catch((error) => {
+      console.warn('[session] failed to persist session meta:', error);
+    });
+    this.pendingMeta.add(task);
+    try {
+      await task;
+    } finally {
+      this.pendingMeta.delete(task);
+    }
+  }
+
+  private async writeSessionMeta(botId: string, sessionId: string): Promise<void> {
     const index = await this.index.load(botId);
     const meta = index.sessions[sessionId];
     if (!meta) return;

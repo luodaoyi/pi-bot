@@ -130,7 +130,14 @@ describe('pibot create_session roundtrip (faux)', () => {
   afterEach(async () => {
     await pool.destroy();
     await ctx.scheduler.shutdown();
-    await rm(tmp, { recursive: true, force: true });
+    for (let i = 0; i < 8; i++) {
+      try {
+        await rm(tmp, { recursive: true, force: true });
+        break;
+      } catch {
+        await new Promise((resolve) => setTimeout(resolve, 40 * (i + 1)));
+      }
+    }
     resetSharedAgentServices();
   });
 

@@ -88,7 +88,7 @@ describe('SessionPool with SDK faux provider', () => {
 
   afterEach(async () => {
     await pool.destroy();
-    await rm(tmp, { recursive: true, force: true });
+    await rmRetry(tmp);
     resetSharedAgentServices();
   });
 
@@ -202,6 +202,20 @@ describe('SessionPool with SDK faux provider', () => {
     expect(forked.messageCount).toBeGreaterThan(0);
   });
 });
+
+async function rmRetry(path: string, attempts = 8): Promise<void> {
+  let last: unknown;
+  for (let i = 0; i < attempts; i++) {
+    try {
+      await rm(path, { recursive: true, force: true });
+      return;
+    } catch (error) {
+      last = error;
+      await new Promise((resolve) => setTimeout(resolve, 40 * (i + 1)));
+    }
+  }
+  throw last;
+}
 
 async function viWaitFor(predicate: () => boolean, timeoutMs: number): Promise<void> {
   const start = Date.now();
