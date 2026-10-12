@@ -5,6 +5,34 @@ All notable changes to pi-agent-bot will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.0-beta.9] - 2026-10-12
+
+### Summary / 摘要
+
+**Quiet tool cards + bots that can actually spawn research sessions.** Owner testing of 0.1.0-beta.8 on Windows showed chat working against a real model, but every tool call dumped full JSON `args` / `output` / `structuredContent` inline, and asking Chief to “创建一个会话研究天气再回来回答” just made it `curl` itself — bots had no self-management tools. This release groups consecutive tool calls of one assistant turn into a single collapsed row (spinner while running, red if any failed), keeps thinking to one line, and registers DeepSeek-Bot-parity `pibot_*` tools into every session so a bot can create a background session, wait for the result, and answer. Session sidebar `messageCount` / `updatedAt` now update live over SSE. Scheduled tasks default to the user’s settings timezone (not UTC) and store name separately from the prompt.
+
+**工具卡片安静下来，机器人终于能开研究会话。** 主人在 Windows 上用真实模型测 beta.8：聊天可用，但每张工具卡把完整 JSON 参数/输出摊开；对 Chief 说「创建一个会话研究天气再回来回答」它只会自己 curl。本版本把同一助手回合的连续工具收成一行折叠（运行中转圈、失败标红），思考过程默认一行，并给每个会话注入与 DeepSeek-Bot 对齐的 `pibot_*` 工具：可以后台建会话、等结果、再回答。侧栏 `messageCount` / `updatedAt` 经 SSE 实时更新。定时任务默认用设置里的时区（不再是 UTC），任务名和消息分开存。
+
+### Added / 新增
+
+- **Collapsed tool groups** ([`81b8c7e`](https://github.com/luodaoyi/pi-bot/commit/81b8c7ee7e212a6b6c7f6d8ada36ba1dc2eee2e0), [#14](https://github.com/luodaoyi/pi-bot/pull/14)): one row like `▸ 已执行 3 个工具：bash ×2, read`. Click expands a compact list (name + one-line summary + status + duration); each item then expands to args / plain-text output (JSON envelopes stripped, long output “显示更多”). Setting 设置→常规 `显示工具调用`: 折叠（默认）/ 隐藏 / 展开. Final assistant text stays prominent.
+- **`pibot_*` self-management tools** ([`81b8c7e`](https://github.com/luodaoyi/pi-bot/commit/81b8c7ee7e212a6b6c7f6d8ada36ba1dc2eee2e0)): registered into every bot session via SDK `customTools` + a `pibot_team` system-prompt section. `pibot_list_bots`, `pibot_create_bot`, `pibot_list_sessions`, `pibot_create_session` (`initialPrompt` runs in the background and returns `sessionId`), `pibot_send_to_session` / `pibot_ask_bot` (optional await + hop limit 6), `pibot_get_session_result`, `pibot_create_group` / `pibot_post_group`, `pibot_schedule_task` / `pibot_list_tasks`, `pibot_secret_list` (names only). Tool-created sessions appear in the sidebar live; the parent chat shows a compact `已创建会话 X` link.
+- Unit tests for each tool with a faux provider (including `create_session` + `initialPrompt` + `get_session_result` roundtrip and hop limit), component tests for the collapsed tool group, and Playwright coverage that the group is collapsed by default and expandable.
+
+### Fixed / 修复
+
+- **Session list showed `0 条消息`:** `messageCount` / `updatedAt` now take the max of the index, SessionManager listing, and the live runtime, and `message_end` persists + emits `session.updated` over SSE ([`81b8c7e`](https://github.com/luodaoyi/pi-bot/commit/81b8c7ee7e212a6b6c7f6d8ada36ba1dc2eee2e0)).
+- **Task timezone defaulted to UTC:** `scheduler.create` uses `settings.timezone` (e.g. `Asia/Shanghai`) when the request omits one; `name` and `prompt` are stored separately ([`81b8c7e`](https://github.com/luodaoyi/pi-bot/commit/81b8c7ee7e212a6b6c7f6d8ada36ba1dc2eee2e0)).
+- **Abort tests raced index writes:** `SessionPool.destroy()` waits for in-flight `bumpSessionMeta` work so `afterEach` rmdir no longer hits `ENOTEMPTY` on Ubuntu CI ([`d984669`](https://github.com/luodaoyi/pi-bot/commit/d984669d4b3595c9d5bd829866c2ba22e6497e80)).
+
+### Commits since v0.1.0-beta.8
+
+- [`81b8c7e`](https://github.com/luodaoyi/pi-bot/commit/81b8c7ee7e212a6b6c7f6d8ada36ba1dc2eee2e0) feat: collapse tool groups, add pibot_* self-mgmt tools, live session counts ([#14](https://github.com/luodaoyi/pi-bot/pull/14))
+- [`d984669`](https://github.com/luodaoyi/pi-bot/commit/d984669d4b3595c9d5bd829866c2ba22e6497e80) fix: await session meta writes before destroying the pool
+- [`dc19e6b`](https://github.com/luodaoyi/pi-bot/commit/dc19e6b5d8e5c318f63c1c1d500e4262a36abdf1) Merge PR #14: collapse tool groups, pibot_* self-mgmt tools, live session counts
+
+**Full Changelog**: https://github.com/luodaoyi/pi-bot/compare/v0.1.0-beta.8...v0.1.0-beta.9
+
 ## [0.1.0-beta.8] - 2026-10-11
 
 ### Summary / 摘要
