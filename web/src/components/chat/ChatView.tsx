@@ -4,13 +4,13 @@ import { Square } from 'lucide-react';
 import { PageStatus } from '@/components/PageStatus';
 import { MarkdownView } from './MarkdownView';
 import { ThinkingBlock } from './ThinkingBlock';
-import { ToolCallCard } from './ToolCallCard';
+import { ToolCallGroup } from './ToolCallGroup';
 import { ChatError } from './ChatError';
 import { ModelPicker } from '@/components/models/ModelPicker';
 import { ThinkingSelector } from '@/components/models/ThinkingSelector';
 import { SessionInfoPanel } from '@/components/session/SessionInfoPanel';
 import type { Bot } from '@/types';
-import type { ModelRef, PiModel, SessionDetail, ThinkingLevel } from '@/api/types';
+import type { ModelRef, PiModel, SessionDetail, ThinkingLevel, ToolDisplayMode } from '@/api/types';
 import type { ChatRuntime } from '@/stores/chat-events';
 
 interface ChatViewProps {
@@ -25,6 +25,8 @@ interface ChatViewProps {
   onAbort: () => Promise<void>;
   onModelChange: (model: ModelRef | null) => void;
   onThinkingChange: (level: ThinkingLevel | null) => void;
+  toolDisplay?: ToolDisplayMode;
+  onOpenSession?: (sessionId: string, botId?: string) => void;
 }
 
 export const ChatView: React.FC<ChatViewProps> = ({
@@ -39,6 +41,8 @@ export const ChatView: React.FC<ChatViewProps> = ({
   onAbort,
   onModelChange,
   onThinkingChange,
+  toolDisplay = 'collapsed',
+  onOpenSession,
 }) => {
   const { t } = useTranslation();
   const [input, setInput] = useState('');
@@ -111,7 +115,13 @@ export const ChatView: React.FC<ChatViewProps> = ({
               ) : (
                 <>
                   {message.thinking && <ThinkingBlock text={message.thinking} streaming={message.streaming} />}
-                  {message.toolCalls?.map((tool) => <ToolCallCard key={tool.id} tool={tool} />)}
+                  {message.toolCalls && message.toolCalls.length > 0 && (
+                    <ToolCallGroup
+                      tools={message.toolCalls}
+                      display={toolDisplay}
+                      onOpenSession={onOpenSession}
+                    />
+                  )}
                   {message.content && (
                     <div className="px-4 py-2 rounded-lg bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-white">
                       <MarkdownView text={message.content} />

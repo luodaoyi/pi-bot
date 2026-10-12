@@ -13,6 +13,7 @@ export interface IndexedSession {
   name?: string;
   createdAt: string;
   updatedAt: string;
+  messageCount?: number;
   model?: BotModel;
   thinking?: ThinkingLevel | null;
 }
@@ -53,7 +54,12 @@ export class SessionIndexStore {
 
   async upsert(botId: string, session: IndexedSession, activate = false): Promise<IndexFile> {
     const index = await this.load(botId);
-    index.sessions[session.id] = session;
+    const prev = index.sessions[session.id];
+    index.sessions[session.id] = {
+      ...prev,
+      ...session,
+      messageCount: session.messageCount ?? prev?.messageCount ?? 0,
+    };
     if (activate || !index.activeId) {
       index.activeId = session.id;
     }

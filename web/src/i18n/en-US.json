@@ -142,6 +142,10 @@
     "tabSessions": "Sessions",
     "tabMemory": "Memory",
     "timezone": "Timezone",
+    "toolDisplay": "Tool calls",
+    "toolDisplayCollapsed": "Collapsed (default)",
+    "toolDisplayHidden": "Hidden",
+    "toolDisplayExpanded": "Expanded",
     "workdir": "Working directory",
     "defaultModel": "Default model",
     "defaultThinking": "Default thinking",
@@ -191,7 +195,12 @@
     "toolLive": "Live output",
     "toolResult": "Result",
     "toolError": "Error",
-    "toolRunning": "Running…"
+    "toolRunning": "Running…",
+    "toolEmpty": "(no output)",
+    "showMore": "Show more",
+    "toolGroupDone": "Ran {{count}} tools: {{names}}",
+    "toolGroupRunning": "Running {{count}} tools: {{names}}",
+    "createdSession": "Created session {{name}}"
   },
   "common": {
     "save": "Save",

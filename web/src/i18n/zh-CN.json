@@ -142,6 +142,10 @@
     "tabSessions": "会话",
     "tabMemory": "记忆",
     "timezone": "时区",
+    "toolDisplay": "显示工具调用",
+    "toolDisplayCollapsed": "折叠（默认）",
+    "toolDisplayHidden": "隐藏",
+    "toolDisplayExpanded": "展开",
     "workdir": "工作目录",
     "defaultModel": "默认模型",
     "defaultThinking": "默认思考等级",
@@ -191,7 +195,12 @@
     "toolLive": "实时输出",
     "toolResult": "结果",
     "toolError": "错误",
-    "toolRunning": "执行中…"
+    "toolRunning": "执行中…",
+    "toolEmpty": "(无输出)",
+    "showMore": "显示更多",
+    "toolGroupDone": "已执行 {{count}} 个工具：{{names}}",
+    "toolGroupRunning": "正在执行 {{count}} 个工具：{{names}}",
+    "createdSession": "已创建会话 {{name}}"
   },
   "common": {
     "save": "保存",

@@ -9,6 +9,8 @@ export type MissedRunPolicy = 'run-once' | 'skip';
 export interface ScheduleConfig {
   id: string;
   botId: string;
+  /** 展示名，与 prompt/message 分开存 */
+  name?: string;
   prompt: string;
   timeType: ScheduleTimeType;
   time: string; // ISO 8601 for 'at', cron expression, or interval like '1h', '30m'
@@ -22,6 +24,7 @@ export interface ScheduleConfig {
 
 export interface ScheduleCreateRequest {
   botId: string;
+  name?: string;
   prompt: string;
   timeType: ScheduleTimeType;
   time: string;
@@ -31,6 +34,7 @@ export interface ScheduleCreateRequest {
 
 export interface ScheduleUpdateRequest {
   enabled?: boolean;
+  name?: string;
   prompt?: string;
   time?: string;
   timezone?: string;

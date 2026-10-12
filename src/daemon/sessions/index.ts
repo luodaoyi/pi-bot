@@ -11,4 +11,5 @@ export type {
   BotSession,
   SessionEvent,
   DeliveryOptions,
+  StartChatOptions,
 } from './types.js';

@@ -127,6 +127,8 @@ export interface SessionStats {
 
 export type ToolCallStatus = 'pending' | 'running' | 'success' | 'error';
 
+export type ToolDisplayMode = 'collapsed' | 'hidden' | 'expanded';
+
 export interface PiToolCall {
   id: string;
   name: string;
@@ -135,6 +137,8 @@ export interface PiToolCall {
   liveOutput?: string;
   status: ToolCallStatus;
   isError?: boolean;
+  startedAt?: number;
+  durationMs?: number;
 }
 
 export interface PiMessage {
@@ -231,6 +235,7 @@ export interface GuiSettings {
   loadContextFiles: boolean;
   timezone: string;
   workdir: string;
+  toolDisplay: ToolDisplayMode;
 }
 
 export type ContractSettings = GuiSettings;

@@ -41,6 +41,23 @@ export function setupSSE(app: Hono, store: Store, sessionPool?: SessionPool) {
 
       sessionPool?.on('bot_event', onBotEvent);
 
+      const onSessionMeta = (payload: SessionEvent) => {
+        if (stream.closed || stream.aborted) return;
+        if (payload.type !== 'session_created' && payload.type !== 'session_updated') return;
+        const type = payload.type === 'session_created' ? 'session.created' : 'session.updated';
+        void stream.writeSSE({
+          event: type,
+          data: JSON.stringify({
+            type,
+            botId: payload.botId,
+            sessionId: payload.sessionId,
+            session: payload.session,
+          }),
+        });
+      };
+      sessionPool?.on('session_created', onSessionMeta);
+      sessionPool?.on('session_updated', onSessionMeta);
+
       const heartbeat = setInterval(() => {
         if (stream.closed || stream.aborted) return;
         void stream.writeSSE({
@@ -53,6 +70,8 @@ export function setupSSE(app: Hono, store: Store, sessionPool?: SessionPool) {
         clearInterval(heartbeat);
         unsubscribeStore();
         sessionPool?.off('bot_event', onBotEvent);
+        sessionPool?.off('session_created', onSessionMeta);
+        sessionPool?.off('session_updated', onSessionMeta);
       };
 
       try {

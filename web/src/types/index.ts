@@ -147,6 +147,7 @@ export interface Settings {
   loadContextFiles: boolean;
   timezone: string;
   workdir: string;
+  toolDisplay: 'collapsed' | 'hidden' | 'expanded';
 }
 
 export interface ChatSession {

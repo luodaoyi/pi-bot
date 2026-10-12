@@ -4,7 +4,8 @@ import { useSearchParams } from 'react-router-dom';
 import { Settings as SettingsIcon } from 'lucide-react';
 import { api, ApiError } from '@/api';
 import type { Settings } from '@/types';
-import type { ModelRef, PiModel, ProviderInfo, ThinkingLevel } from '@/api/types';
+import type { ModelRef, PiModel, ProviderInfo, ThinkingLevel, ToolDisplayMode } from '@/api/types';
+import { useAppStore } from '@/stores';
 import { PageStatus } from '@/components/PageStatus';
 import { ModelPicker } from '@/components/models/ModelPicker';
 import { ThinkingSelector } from '@/components/models/ThinkingSelector';
@@ -82,6 +83,7 @@ export const SettingsView: React.FC = () => {
     try {
       const updated = await api.updateSettings(settings);
       setSettings(normalizeSettings(updated));
+      useAppStore.getState().setToolDisplay(updated.toolDisplay ?? 'collapsed');
       await i18n.changeLanguage(updated.language);
       const root = document.documentElement;
       if (updated.theme === 'dark') root.classList.add('dark');
@@ -152,6 +154,18 @@ export const SettingsView: React.FC = () => {
                       onChange={(e) => setSettings({ ...settings, timezone: e.target.value })}
                       className="w-full px-4 py-2 border rounded-lg bg-white dark:bg-gray-800"
                     />
+                  </Field>
+                  <Field label={t('settings.toolDisplay')}>
+                    <select
+                      data-testid="settings-tool-display"
+                      value={settings.toolDisplay ?? 'collapsed'}
+                      onChange={(e) => setSettings({ ...settings, toolDisplay: e.target.value as ToolDisplayMode })}
+                      className="w-full px-4 py-2 border rounded-lg bg-white dark:bg-gray-800"
+                    >
+                      <option value="collapsed">{t('settings.toolDisplayCollapsed')}</option>
+                      <option value="hidden">{t('settings.toolDisplayHidden')}</option>
+                      <option value="expanded">{t('settings.toolDisplayExpanded')}</option>
+                    </select>
                   </Field>
                   <Field label={t('settings.workdir')}>
                     <input

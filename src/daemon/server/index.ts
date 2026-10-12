@@ -76,11 +76,6 @@ export async function serve(options: { configPath?: string; dev: boolean; port?:
     loadUserExtensions: config.pi.loadUserExtensions,
     loadContextFiles: config.pi.loadContextFiles,
   });
-  try {
-    await sessionPool.getServices();
-  } catch (error) {
-    console.error('Shared SDK services will be created on first session:', error);
-  }
 
   // Initialize team coordinator
   const teamCoordinator = new TeamCoordinator(store, sessionPool);
@@ -88,9 +83,10 @@ export async function serve(options: { configPath?: string; dev: boolean; port?:
   // Initialize group manager
   const groupManager = new GroupManager(store, sessionPool);
 
-  // Initialize scheduler
+  // Initialize scheduler（时区默认跟用户设置，不是 UTC）
   const scheduler = await createScheduler({
     storePath: join(homeDir, 'schedules.json'),
+    getDefaultTimezone: () => settingsStore.get().timezone || 'UTC',
     onTrigger: async (schedule) => {
       // Use sessionPool to deliver scheduled messages
       try {
@@ -110,6 +106,20 @@ export async function serve(options: { configPath?: string; dev: boolean; port?:
   const secrets = await createSecretsManager({
     storePath: join(homeDir, 'secrets.json'),
   });
+
+  sessionPool.setHost({
+    store,
+    pool: sessionPool,
+    scheduler,
+    groups: groupManager,
+    secrets,
+    getTimezone: () => settingsStore.get().timezone || 'UTC',
+  });
+  try {
+    await sessionPool.getServices();
+  } catch (error) {
+    console.error('Shared SDK services will be created on first session:', error);
+  }
 
   // Initialize usage tracker
   const usage = await createUsageTracker({

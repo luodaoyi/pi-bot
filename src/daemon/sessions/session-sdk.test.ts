@@ -157,6 +157,11 @@ describe('SessionPool with SDK faux provider', () => {
       expect(thinking).toBeGreaterThan(slice.indexOf('bot.message_start'));
       expect(thinking).toBeLessThan(slice.indexOf('bot.message_end'));
     }
+
+    const listed = await pool.listBotSessions(bot);
+    const row = listed.find((s) => s.id === accepted.sessionId);
+    expect(row?.messageCount).toBeGreaterThan(0);
+    expect(row?.updatedAt).toBeTruthy();
   });
 
   it('abort stops an in-flight prompt', { timeout: 20_000 }, async () => {

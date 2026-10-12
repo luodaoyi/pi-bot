@@ -13,6 +13,10 @@ export const THINKING_LEVELS = [
 
 export type ThinkingLevelSetting = (typeof THINKING_LEVELS)[number];
 
+export const TOOL_DISPLAY_MODES = ['collapsed', 'hidden', 'expanded'] as const;
+
+export type ToolDisplayMode = (typeof TOOL_DISPLAY_MODES)[number];
+
 export interface SettingsModelRef {
   provider: string;
   id: string;
@@ -32,6 +36,8 @@ export interface GuiSettings {
   loadContextFiles: boolean;
   timezone: string;
   workdir: string;
+  /** 聊天里工具调用的默认展示：折叠 / 隐藏 / 展开 */
+  toolDisplay: ToolDisplayMode;
 }
 
 export const DEFAULT_GUI_SETTINGS: GuiSettings = {
@@ -47,6 +53,7 @@ export const DEFAULT_GUI_SETTINGS: GuiSettings = {
   loadContextFiles: false,
   timezone: 'UTC',
   workdir: '',
+  toolDisplay: 'collapsed',
 };
 
 export function defaultTimezone(): string {

@@ -98,6 +98,7 @@ function defaultSettings(): Settings {
     loadContextFiles: false,
     timezone: 'UTC',
     workdir: '',
+    toolDisplay: 'collapsed',
   };
 }
 

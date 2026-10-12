@@ -32,7 +32,7 @@ export function createSchedulerExtension(options: SchedulerExtensionOptions) {
         time: Type.String({
           description: 'Schedule specification: cron expression, HH:mm for daily, "day HH:mm" for weekly (day 0-6), or interval like "1h", "30m" for every',
         }),
-        timezone: Type.Optional(Type.String({ description: 'IANA timezone (default: UTC)' })),
+        timezone: Type.Optional(Type.String({ description: 'IANA timezone (default: user settings timezone)' })),
         missedPolicy: Type.Optional(
           Type.Union([Type.Literal('run-once'), Type.Literal('skip')], {
             description: 'What to do if a run was missed while offline (default: run-once)',

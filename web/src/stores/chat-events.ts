@@ -113,6 +113,7 @@ export function applyBotEvent(runtime: ChatRuntime, event: BotSseEvent): ChatRun
           name: event.toolName,
           arguments: asArgs(event.args),
           status: 'running',
+          startedAt: Date.now(),
         }),
       });
     }
@@ -140,6 +141,11 @@ export function applyBotEvent(runtime: ChatRuntime, event: BotSseEvent): ChatRun
           result: stringifyUnknown(event.result),
           status: event.isError ? 'error' : 'success',
           isError: Boolean(event.isError),
+          durationMs: (() => {
+            const id = event.toolCallId || current.toolCalls?.[current.toolCalls.length - 1]?.id;
+            const existing = current.toolCalls?.find((t) => t.id === id);
+            return existing?.startedAt ? Date.now() - existing.startedAt : undefined;
+          })(),
         }),
       });
     }

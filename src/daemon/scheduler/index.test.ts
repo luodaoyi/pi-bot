@@ -147,4 +147,36 @@ describe('Scheduler', () => {
 
     await scheduler2.shutdown();
   });
+
+  it('defaults timezone to getDefaultTimezone and stores name separately', async () => {
+    const scheduler = await createScheduler({
+      storePath: join(tempDir, 'schedules.json'),
+      getDefaultTimezone: () => 'Asia/Shanghai',
+      onTrigger: async () => {},
+    });
+
+    const schedule = await scheduler.create({
+      botId: 'bot-123',
+      name: '晨报',
+      prompt: '总结昨夜',
+      timeType: 'cron',
+      time: '0 9 * * *',
+    });
+
+    expect(schedule.timezone).toBe('Asia/Shanghai');
+    expect(schedule.name).toBe('晨报');
+    expect(schedule.prompt).toBe('总结昨夜');
+
+    const explicit = await scheduler.create({
+      botId: 'bot-123',
+      name: 'UTC job',
+      prompt: 'ping',
+      timeType: 'cron',
+      time: '0 0 * * *',
+      timezone: 'UTC',
+    });
+    expect(explicit.timezone).toBe('UTC');
+
+    await scheduler.shutdown();
+  });
 });

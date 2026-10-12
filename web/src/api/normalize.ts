@@ -84,11 +84,19 @@ export function normalizeSettings(raw: unknown): Settings {
     loadContextFiles: Boolean(rec.loadContextFiles),
     timezone: String(rec.timezone || 'UTC'),
     workdir: String(rec.workdir ?? ''),
+    toolDisplay:
+      rec.toolDisplay === 'hidden' || rec.toolDisplay === 'expanded' || rec.toolDisplay === 'collapsed'
+        ? rec.toolDisplay
+        : 'collapsed',
   };
 }
 
 export function settingsToContract(settings: Settings): ContractSettings {
-  return { ...settings, memoryReview: Boolean(settings.memoryReview) };
+  return {
+    ...settings,
+    memoryReview: Boolean(settings.memoryReview),
+    toolDisplay: settings.toolDisplay ?? 'collapsed',
+  };
 }
 
 export function toModelInfo(model: PiModel): ModelInfo {
@@ -250,10 +258,51 @@ function normalizePiMessage(raw: unknown, index: number): import('./types').PiMe
 
 export function stringifyUnknown(value: unknown): string {
   if (value === undefined || value === null) return '';
-  if (typeof value === 'string') return value;
+  if (typeof value === 'string') {
+    const extracted = extractToolOutputText(value);
+    return extracted || value;
+  }
+  const extracted = extractToolOutputText(value);
+  if (extracted) return extracted;
   try {
     return JSON.stringify(value, null, 2);
   } catch {
     return String(value);
   }
+}
+
+/** 把 SDK / bash 的 JSON 信封拆成纯文本，避免把 content/structuredContent 整包展开 */
+export function extractToolOutputText(value: unknown): string {
+  if (value === undefined || value === null) return '';
+  if (typeof value === 'string') {
+    const trimmed = value.trim();
+    if ((trimmed.startsWith('{') && trimmed.endsWith('}')) || (trimmed.startsWith('[') && trimmed.endsWith(']'))) {
+      try {
+        return extractToolOutputText(JSON.parse(trimmed));
+      } catch {
+        return value;
+      }
+    }
+    return value;
+  }
+  if (Array.isArray(value)) {
+    return value.map((item) => extractToolOutputText(item)).filter(Boolean).join('\n');
+  }
+  if (typeof value !== 'object') return String(value);
+  const rec = value as Record<string, unknown>;
+  if (Array.isArray(rec.content)) {
+    const texts = rec.content
+      .map((block) => {
+        if (!block || typeof block !== 'object') return '';
+        const b = block as Record<string, unknown>;
+        return typeof b.text === 'string' ? b.text : '';
+      })
+      .filter(Boolean);
+    if (texts.length) return texts.join('\n');
+  }
+  if (typeof rec.text === 'string' && rec.text.trim()) return rec.text;
+  if (typeof rec.result === 'string') return extractToolOutputText(rec.result);
+  if (rec.result && typeof rec.result === 'object') return extractToolOutputText(rec.result);
+  if (typeof rec.output === 'string') return rec.output;
+  return '';
 }

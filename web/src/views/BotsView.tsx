@@ -116,6 +116,16 @@ export const BotsView: React.FC = () => {
             onRetry={() => void store.selectBot(store.selectedBotId!)}
             onSend={(text) => store.sendMessage(store.selectedBotId!, text)}
             onAbort={() => store.abortChat(store.selectedBotId!)}
+            toolDisplay={store.toolDisplay}
+            onOpenSession={(sessionId, botId) => {
+              const targetBot = botId && store.bots.some((b) => b.id === botId) ? botId : store.selectedBotId;
+              if (!targetBot) return;
+              if (targetBot !== store.selectedBotId) {
+                void store.selectBot(targetBot).then(() => store.selectSession(targetBot, sessionId));
+              } else {
+                void store.selectSession(targetBot, sessionId);
+              }
+            }}
             onModelChange={(model) => {
               if (store.activeSessionId) {
                 void store.setSessionModel(store.selectedBotId!, store.activeSessionId, model);

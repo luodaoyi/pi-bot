@@ -4,12 +4,17 @@ import path from 'path';
 export default defineConfig({
   test: {
     globals: true,
-    include: ['src/**/*.test.ts', 'web/src/**/*.test.ts', 'tests/**/*.test.ts'],
+    include: ['src/**/*.test.ts', 'web/src/**/*.test.ts', 'web/src/**/*.test.tsx', 'tests/**/*.test.ts'],
     environmentMatchGlobs: [
       ['web/src/**/*.test.ts', 'jsdom'],
+      ['web/src/**/*.test.tsx', 'jsdom'],
       ['tests/ui/**/*.test.ts', 'jsdom'],
     ],
     pool: 'forks',
+    setupFiles: [path.resolve(__dirname, 'web/src/test/setup.ts')],
+    deps: {
+      moduleDirectories: ['node_modules', path.resolve(__dirname, 'web/node_modules')],
+    },
   },
   resolve: {
     alias: [
@@ -25,3 +30,4 @@ export default defineConfig({
     ],
   },
 });
+
